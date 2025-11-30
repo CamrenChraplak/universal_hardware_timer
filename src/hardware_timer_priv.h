@@ -21,4 +21,46 @@
 
 #include "hardware_timer.h"
 
+/**
+ * Macro for contatenating flags as numbers
+ * 
+ * @param a first input
+ * @param b second input
+ * 
+ * @return contatenated value
+ * 
+ * @note Example:
+ * @note #define NUMBER 1
+ * @note #define FUNCTION(id) CONCATENATE(function, id)
+ * @note FUNCTION(NUMBER)
+ * @note //returns 'function1' instead of 'functionNUMBER'
+ */
+#define HARD_TIMER_CONCATENATE(a, b) a ## b
+
+/**
+ * Macro for contatenating 3 flags as numbers
+ * 
+ * @param a first input
+ * @param b second input
+ * @param c third input
+ * 
+ * @return contatenated value
+ * 
+ * @note Example:
+ * @note #define NUMBER 1
+ * @note #define FUNCTION(id) CONCATENATE(function, id, name)
+ * @note FUNCTION(NUMBER)
+ * @note //returns 'function1name' instead of 'functionNUMBERname'
+ */
+#define HARD_TIMER_CONCATENATE3(a, b, c) a ## b ## c
+
+#if HARDWARE_TIMER_SUPPORT_AVR
+	#define HARDWARE_TIMER_NO_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
+#endif
+
+#ifdef HARDWARE_TIMER_NO_CALLBACK_SUPPORT
+	extern hard_timer_function_ptr_t hardTimerFunctions[HARD_TIMER_COUNT];
+	extern void* hardTimerParams[HARD_TIMER_COUNT];
+#endif
+
 #endif
