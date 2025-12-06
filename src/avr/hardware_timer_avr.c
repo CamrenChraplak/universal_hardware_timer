@@ -62,12 +62,6 @@ typedef uint16_t timertick_t; // timer tick type
 	#error "Too many timers"
 #endif
 
-#if F_CPU == 16000000L
-	#define FREQ_MIN_8_COUNTER 62 // min frequency for 8 bit counter
-#else
-	#error "Frequency not supported"
-#endif
-
 const prescalar_t scalarMask[] PROGMEM = {
 	#ifdef SCALAR_1_ENABLE
 		1, // SCALAR_1

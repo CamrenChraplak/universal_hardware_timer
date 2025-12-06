@@ -34,6 +34,12 @@
 
 #if HARDWARE_TIMER_SUPPORT_AVR
 
+#if F_CPU == 16000000L
+	#define FREQ_MIN_8_COUNTER 62 // min frequency for 8 bit counter
+#else
+	#error "Frequency not supported"
+#endif
+
 #if defined(__AVR_ATmega328P__)
 	#include "hardware_timer_avr_atmega328p.h"
 #endif

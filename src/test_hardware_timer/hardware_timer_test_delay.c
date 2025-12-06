@@ -18,6 +18,8 @@
 
 #include "hardware_timer_test_priv.h"
 
+void delaySeconds(uint8_t seconds) __attribute__((weak));
+
 #if defined(ARDUINO) && !defined(OVERRIDE_ARDUINO_TIMER)
 
 #include <Arduino.h>
@@ -28,8 +30,39 @@ void delaySeconds(uint8_t seconds) {
 
 #else
 
+#if HARDWARE_TIMER_SUPPORT_AVR
+	#include "../avr/hardware_timer_avr.h"
+#endif
+
+/**
+ * Interrupt function for delay
+ * 
+ * @param params parameters passed
+ */
+void timerDelayCounter(void *params) {
+	*(volatile uint8_t*)params += 1;
+}
+
 void delaySeconds(uint8_t seconds) {
-	//TODO: delay for non Arduino
+	hard_timer_enum_t timer = HARD_TIMER_INVALID;
+	volatile uint8_t delayCount = 0U;
+
+	hard_timer_freq_t freq =
+	#ifdef FREQ_MIN_8_COUNTER
+		FREQ_MIN_8_COUNTER;
+	#else
+		1;
+	#endif
+
+	if (!setHardTimer(&timer, &freq, &timerDelayCounter, (void*)&delayCount, HARD_TIMER_PRIORITY_DEFAULT)) {
+		cancelHardTimer(timer);
+		return;
+	}
+
+	while (delayCount < seconds * freq) {
+		__asm__ __volatile__ ("nop");
+	}
+	cancelHardTimer(timer);
 }
 
 #endif
