@@ -27,7 +27,7 @@
  * 16-bit scalar
  */
 
-#include "../hardware_timer_priv.h"
+#include "../private/hardware_timer_priv.h"
 
 #if HARDWARE_TIMER_SUPPORT_ESP32
 

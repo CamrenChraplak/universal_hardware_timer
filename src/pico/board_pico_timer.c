@@ -21,7 +21,7 @@
  * scalar: SCALAR_MS (millis) or SCALAR_US (micros)
  */
 
-#include "../hardware_timer_priv.h"
+#include "../private/hardware_timer_priv.h"
 
 #if HARDWARE_TIMER_SUPPORT_PICO
 

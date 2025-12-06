@@ -1,5 +1,5 @@
 /*
-	hardware_timer_avr.h - timer configuration for avr
+	hardware_timer_test_delay.c - delay methods for timer
 	Copyright (C) 2025 Camren Chraplak
 
 	This program is free software: you can redistribute it and/or modify
@@ -16,26 +16,20 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-/**
- * Arduino functionality that uses hardware timers
- * 
- * wiring.c
- * 		millis()
- * 			Uses one timer
- * wiring_analog.c
- * 		PWM/AnalogWrite
- * 			Uses all timers if all PWM pins used
- * Tone.cpp
- * 		Tone generation
- * 			Uses one timer
- */
+#include "hardware_timer_test_priv.h"
 
-#include "../private/hardware_timer_priv.h"
+#if defined(ARDUINO) && !defined(OVERRIDE_ARDUINO_TIMER)
 
-#if HARDWARE_TIMER_SUPPORT_AVR
+#include <Arduino.h>
 
-#if defined(__AVR_ATmega328P__)
-	#include "hardware_timer_avr_atmega328p.h"
-#endif
+void delaySeconds(uint8_t seconds) {
+	delay(seconds * 1000);
+}
+
+#else
+
+void delaySeconds(uint8_t seconds) {
+	//TODO: delay for non Arduino
+}
 
 #endif

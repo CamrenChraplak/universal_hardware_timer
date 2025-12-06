@@ -1,5 +1,5 @@
 /*
-	hardware_timer.c - hardware timer interface for microcontrollers
+	hardware_timer_priv.c - hardware timer interface for microcontrollers
 	Copyright (C) 2025 Camren Chraplak
 
 	This program is free software: you can redistribute it and/or modify
