@@ -18,6 +18,14 @@
 
 #include "hardware_timer_test_priv.h"
 
+#if defined(USE_UNITY)
+	#warning "Testing hardware_timer with Unity"
+#elif defined(ARDUINO)
+	#warning "Testing hardware_timer with Arduino"
+#else
+	#warning "Testing hardware_timer with C"
+#endif
+
 #if HARD_TIMER_COUNT > 0
 
 #define TEST_SLOW_FREQ 10 // frequency for testing slow timing
