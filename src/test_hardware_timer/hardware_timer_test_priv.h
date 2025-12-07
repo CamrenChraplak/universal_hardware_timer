@@ -31,7 +31,7 @@ typedef const char memCharString;
 #endif
 
 // use Unity
-#if defined(PIO_UNIT_TESTING)
+#if defined(PIO_UNIT_TESTING) || defined(ESP_IDF_UNIT_TESTING)
 	#include <unity.h>
 	#define USE_UNITY // use Unity for testing
 // use Serial or printf

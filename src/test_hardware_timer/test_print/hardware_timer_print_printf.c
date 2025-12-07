@@ -1,5 +1,5 @@
 /*
-	hardware_timer_print_serial.cpp - prints Serial results of tests
+	hardware_timer_print_printf.c - prints printf results of tests
 	Copyright (C) 2025 Camren Chraplak
 
 	This program is free software: you can redistribute it and/or modify
@@ -18,35 +18,40 @@
 
 #include "../hardware_timer_test_priv.h"
 
-#if !defined(USE_UNITY) && defined(ARDUINO)
+#if !defined(USE_UNITY) && !defined(ARDUINO)
 
-#include <Arduino.h>
+#if HARDWARE_TIMER_SUPPORT_ESP32
+	#if ESP_IDF_VERSION_MAJOR == 5
+		#define PRINT_LONG_SPECIFIER
+	#endif
+#endif
 
 char* timerFuncName = NULL;
 int timerFuncLine = -1;
 
 void printMessageType(memCharString *message, const int funcLine, int messType) {
-	Serial.print(F("["));
+	printf("[");
 	if (messType == TEST_FAILED) {
-		Serial.print(F("Failed"));
+		printf("Failed");
 	}
 	else if (messType == TEST_IGNORED) {
-		Serial.print(F("Ignored"));
+		printf("Ignored");
 	}
 	else if (messType == TEST_PASSED) {
-		Serial.print(F("Passed"));
+		printf("Passed");
 	}
-	Serial.print(F("],\t"));
-	Serial.print(timerFuncName);
-	Serial.print(F(", "));
+	printf("],\t");
+	printf(timerFuncName);
+	printf(", ");
 	if (messType == TEST_PASSED) {
-		Serial.print(timerFuncLine);
+		printf("%d", timerFuncLine);
 	}
 	else {
-		Serial.print(funcLine);
+		printf("%d", funcLine);
 	}
-	Serial.print(F(": "));
-	Serial.println(message);
+	printf(": ");
+	printf(message);
+	printf("\n");
 
 	if (timerFuncName != NULL) {
 		free(timerFuncName);
@@ -57,7 +62,12 @@ void printMessageType(memCharString *message, const int funcLine, int messType) 
 bool timerCountWithin(uint32_t buffer, uint32_t targetCount, uint32_t realCount, const int funcLine) {
 	if (realCount + buffer < targetCount || realCount - buffer > targetCount) {
 		char message[60];
-		sprintf(message, "Values not within delta %lu, Expected %lu, Got %lu", buffer, targetCount, realCount);
+		#ifdef PRINT_LONG_SPECIFIER
+			sprintf(message, "Values not within delta %lu, Expected %lu, Got %lu", buffer, targetCount, realCount);
+		#else
+			sprintf(message, "Values not within delta %u, Expected %u, Got %u", buffer, targetCount, realCount);
+		#endif
+		
 		printMessageType(message, funcLine, TEST_FAILED);
 		return false;
 	}
