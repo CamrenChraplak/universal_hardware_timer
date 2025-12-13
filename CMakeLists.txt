@@ -1,4 +1,4 @@
-# CMakeLsts.txt - cmake for ESP32 lib_esp32 files
+# CMakeLsts.txt - cmake for microcontrollers
 # Copyright (C) 2025 Camren Chraplak
 
 # This program is free software: you can redistribute it and/or modify
@@ -14,7 +14,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-if(IDF_TARGET STREQUAL "esp32")
+# esp-idf for esp32
+if(DEFINED IDF_TARGET)
 
     idf_component_register(
         SRC_DIRS "src" "src/esp32" "src/private" "src/test_hardware_timer" "src/test_hardware_timer/test_print"
@@ -23,5 +24,23 @@ if(IDF_TARGET STREQUAL "esp32")
     )
 
     target_compile_options(${COMPONENT_LIB} PRIVATE -Wno-expansion-to-defined)
+
+# pico sdk for rpi pico
+elseif(DEFINED PICO_BOARD)
+
+    add_library(custom_hardware_timer INTERFACE)
+
+    target_sources(custom_hardware_timer INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/pico/board_pico_timer.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/private/hardware_timer_priv.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test_hardware_timer/hardware_timer_test_delay.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test_hardware_timer/hardware_timer_test_priv.c
+        ${CMAKE_CURRENT_SOURCE_DIR}/src/test_hardware_timer/test_print/hardware_timer_print_printf.c
+    )
+
+    target_include_directories(custom_hardware_timer INTERFACE
+        ${CMAKE_CURRENT_SOURCE_DIR}/include
+        ${CMAKE_CURRENT_BINARY_DIR}/include
+    )
 
 endif()

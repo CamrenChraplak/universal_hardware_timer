@@ -118,7 +118,7 @@ typedef void (*hard_timer_function_ptr_t) (void*); // timer callback function po
 	 * Only 14 timers after api usage
 	****************************/
 
-	#define HARD_TIMER_FREQ_MAX 333333 // max frequency user set timer can be
+	#define HARD_TIMER_FREQ_MAX 250000 // max frequency user set timer can be
 	#define HARD_TIMER_COUNT 14 // amount of hardware timers to use
 
 	#include <pico.h>
