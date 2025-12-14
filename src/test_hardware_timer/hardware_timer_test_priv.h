@@ -19,7 +19,7 @@
 #ifndef HARDWARE_TIMER_TEST_PRIV_H
 #define HARDWARE_TIMER_TEST_PRIV_H
 
-#include <universal_hardware_timer_test.h>
+#include "../universal_hardware_timer_test.h"
 
 typedef const char memCharString;
 

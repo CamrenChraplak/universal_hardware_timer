@@ -19,7 +19,7 @@
 #ifndef HARDWARE_TIMER_TEST_H
 #define HARDWARE_TIMER_TEST_H
 
-#include <universal_hardware_timer.h>
+#include "universal_hardware_timer.h"
 
 #ifdef __cplusplus
 extern "C" {

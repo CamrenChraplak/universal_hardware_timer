@@ -19,7 +19,7 @@ if(DEFINED IDF_TARGET)
 
     idf_component_register(
         SRC_DIRS "src" "src/esp32" "src/private" "src/test_hardware_timer" "src/test_hardware_timer/test_print"
-        INCLUDE_DIRS "include"
+        INCLUDE_DIRS "src"
         REQUIRES driver esp_timer unity
     )
 
@@ -39,8 +39,8 @@ elseif(DEFINED PICO_BOARD)
     )
 
     target_include_directories(universal_hardware_timer INTERFACE
-        ${CMAKE_CURRENT_SOURCE_DIR}/include
-        ${CMAKE_CURRENT_BINARY_DIR}/include
+        ${CMAKE_CURRENT_SOURCE_DIR}/src
+        ${CMAKE_CURRENT_BINARY_DIR}/src
     )
 
 endif()
