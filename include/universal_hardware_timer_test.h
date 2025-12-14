@@ -1,5 +1,5 @@
 /*
-	hardware_timer_test.h - methods to test timer methods
+	universal_hardware_timer_test.h - methods to test timer methods
 	Copyright (C) 2025 Camren Chraplak
 
 	This program is free software: you can redistribute it and/or modify
@@ -19,7 +19,7 @@
 #ifndef HARDWARE_TIMER_TEST_H
 #define HARDWARE_TIMER_TEST_H
 
-#include <hardware_timer.h>
+#include <universal_hardware_timer.h>
 
 #ifdef __cplusplus
 extern "C" {

@@ -1,5 +1,5 @@
 /*
-	hardware_timer.h - hardware timer interface for microcontrollers
+	universal_hardware_timer.h - hardware timer interface for microcontrollers
 	Copyright (C) 2025 Camren Chraplak
 
 	This program is free software: you can redistribute it and/or modify

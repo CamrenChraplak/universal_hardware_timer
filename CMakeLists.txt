@@ -28,9 +28,9 @@ if(DEFINED IDF_TARGET)
 # pico sdk for rpi pico
 elseif(DEFINED PICO_BOARD)
 
-    add_library(custom_hardware_timer INTERFACE)
+    add_library(universal_hardware_timer INTERFACE)
 
-    target_sources(custom_hardware_timer INTERFACE
+    target_sources(universal_hardware_timer INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/src/pico/board_pico_timer.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/private/hardware_timer_priv.c
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test_hardware_timer/hardware_timer_test_delay.c
@@ -38,7 +38,7 @@ elseif(DEFINED PICO_BOARD)
         ${CMAKE_CURRENT_SOURCE_DIR}/src/test_hardware_timer/test_print/hardware_timer_print_printf.c
     )
 
-    target_include_directories(custom_hardware_timer INTERFACE
+    target_include_directories(universal_hardware_timer INTERFACE
         ${CMAKE_CURRENT_SOURCE_DIR}/include
         ${CMAKE_CURRENT_BINARY_DIR}/include
     )

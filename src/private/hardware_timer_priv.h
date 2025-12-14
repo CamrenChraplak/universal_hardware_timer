@@ -19,7 +19,7 @@
 #ifndef HARDWARE_TIMER_PRIV_H
 #define HARDWARE_TIMER_PRIV_H
 
-#include "hardware_timer.h"
+#include <universal_hardware_timer.h>
 
 /**
  * Macro for contatenating flags as numbers
