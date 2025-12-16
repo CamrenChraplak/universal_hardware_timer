@@ -18,7 +18,7 @@
 
 #include "hardware_timer_avr.h"
 
-#if HARD_TIMER_COUNT > 0 && HARDWARE_TIMER_SUPPORT_AVR
+#if UHWT_TIMER_COUNT > 0 && UHWT_SUPPORT_AVR
 
 #include <avr/io.h>
 #include <avr/interrupt.h>
@@ -50,13 +50,13 @@ typedef enum {
 typedef uint16_t prescalar_t; // scalar type
 typedef uint16_t timertick_t; // timer tick type
 
-#if HARD_TIMER_COUNT <= 4
+#if UHWT_TIMER_COUNT <= 4
 	uint8_t timerStates = 0U; // started states and claimed states
-#elif HARD_TIMER_COUNT <= 8
+#elif UHWT_TIMER_COUNT <= 8
 	uint16_t timerStates = 0U; // started states and claimed states
-#elif HARD_TIMER_COUNT <= 16
+#elif UHWT_TIMER_COUNT <= 16
 	uint32_t timerStates = 0U; // started states and claimed states
-#elif HARD_TIMER_COUNT <= 32
+#elif UHWT_TIMER_COUNT <= 32
 	uint64_t timerStates = 0U; // started states and claimed states
 #else
 	#error "Too many timers"
@@ -87,45 +87,45 @@ const prescalar_t scalarMask[] PROGMEM = {
 };
 
 #ifndef SKIP_TIMER_INDEX
-	#define SKIP_TIMER_INDEX HARD_TIMER_COUNT
+	#define SKIP_TIMER_INDEX UHWT_TIMER_COUNT
 #endif
 
-#ifdef OVERRIDE_ARDUINO_TIMER
-	#define TIMER_COUNT HARD_TIMER_COUNT
+#ifdef UHWT_OVERRIDE_ARDUINO_TIMER
+	#define TIMER_COUNT UHWT_TIMER_COUNT
 #else
-	#define TIMER_COUNT HARD_TIMER_COUNT + 1
+	#define TIMER_COUNT UHWT_TIMER_COUNT + 1
 #endif
 
 #if TIMER_COUNT > 0
 	#if SKIP_TIMER_INDEX == 0
-		#define TIMER_0_ALIAS HARD_TIMER_INVALID_LIT
+		#define TIMER_0_ALIAS UHWT_TIMER_INVALID_LIT
 	#else
-		#define TIMER_0_ALIAS HARD_TIMER0
+		#define TIMER_0_ALIAS UHWT_TIMER0
 	#endif
 #else
-	#define TIMER_0_ALIAS HARD_TIMER_INVALID_LIT
+	#define TIMER_0_ALIAS UHWT_TIMER_INVALID_LIT
 #endif
 #if TIMER_COUNT > 1
 	#if SKIP_TIMER_INDEX == 1
-		#define TIMER_1_ALIAS HARD_TIMER_INVALID_LIT
+		#define TIMER_1_ALIAS UHWT_TIMER_INVALID_LIT
 	#elif SKIP_TIMER_INDEX < 1
-		#define TIMER_1_ALIAS HARD_TIMER0
+		#define TIMER_1_ALIAS UHWT_TIMER0
 	#else
-		#define TIMER_1_ALIAS HARD_TIMER1
+		#define TIMER_1_ALIAS UHWT_TIMER1
 	#endif
 #else
-	#define TIMER_1_ALIAS HARD_TIMER_INVALID_LIT
+	#define TIMER_1_ALIAS UHWT_TIMER_INVALID_LIT
 #endif
 #if TIMER_COUNT > 2
 	#if SKIP_TIMER_INDEX == 2
-		#define TIMER_2_ALIAS HARD_TIMER_INVALID_LIT
+		#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT
 	#elif SKIP_TIMER_INDEX < 2
-		#define TIMER_2_ALIAS HARD_TIMER1
+		#define TIMER_2_ALIAS UHWT_TIMER1
 	#else
-		#define TIMER_2_ALIAS HARD_TIMER2
+		#define TIMER_2_ALIAS UHWT_TIMER2
 	#endif
 #else
-	#define TIMER_2_ALIAS HARD_TIMER_INVALID_LIT
+	#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT
 #endif
 
 #define SCALAR_MASK_SIZE (sizeof(scalarMask) / sizeof(prescalar_t)) // size of scalarMask
@@ -134,7 +134,7 @@ const prescalar_t scalarMask[] PROGMEM = {
  * Timer 0
 ****************************/
 
-#if TIMER_0_ALIAS != HARD_TIMER_INVALID_LIT
+#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
 
 #define TIMER_0_COMP TCCR0A // sets compare mode
 #define TIMER_0_WAVEFORM TCCR0B // sets waveform mode
@@ -176,7 +176,7 @@ ISR(TIMER0_COMPA_vect) {
  * Timer 1
 ****************************/
 
-#if TIMER_1_ALIAS != HARD_TIMER_INVALID_LIT
+#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
 
 #define TIMER_1_COMP TCCR1A // sets compare mode
 #define TIMER_1_WAVEFORM TCCR1B // sets waveform mode
@@ -222,7 +222,7 @@ ISR(TIMER1_COMPA_vect) {
  * Timer 2
 ****************************/
 
-#if TIMER_2_ALIAS != HARD_TIMER_INVALID_LIT
+#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
 
 #define TIMER_2_COMP TCCR2A // sets compare mode
 #define TIMER_2_WAVEFORM TCCR2B // sets waveform mode
@@ -287,7 +287,7 @@ uint16_t getMask(prescalar_enum_t scalar) {
  * 
  * @return calculated timer ticks
  */
-timertick_t calculateTicks(prescalar_enum_t scalar, hard_timer_freq_t freq) {
+timertick_t calculateTicks(prescalar_enum_t scalar, uhwt_freq_t freq) {
 	return (F_CPU / (getMask(scalar) * freq)) - 1;
 }
 
@@ -299,8 +299,8 @@ timertick_t calculateTicks(prescalar_enum_t scalar, hard_timer_freq_t freq) {
  * 
  * @return calculated frequency
  */
-hard_timer_freq_t calculateFreq(prescalar_enum_t scalar, timertick_t timerTicks) {
-	return F_CPU / ((hard_timer_freq_t)getMask(scalar) * (timerTicks + 1));
+uhwt_freq_t calculateFreq(prescalar_enum_t scalar, timertick_t timerTicks) {
+	return F_CPU / ((uhwt_freq_t)getMask(scalar) * (timerTicks + 1));
 }
 
 /**
@@ -309,9 +309,9 @@ hard_timer_freq_t calculateFreq(prescalar_enum_t scalar, timertick_t timerTicks)
  * @param timer timer to set
  * @param state whether or not timer is started
  */
-void setTimerStarted(hard_timer_enum_t timer, bool state) {
+void setTimerStarted(uhwt_timer_t timer, bool state) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return;
 	}
 	if (state) {
@@ -328,16 +328,16 @@ void setTimerStarted(hard_timer_enum_t timer, bool state) {
  * @param timer timer to set
  * @param state whether or not timer is claimed
  */
-void setTimerClaimed(hard_timer_enum_t timer, bool state) {
+void setTimerClaimed(uhwt_timer_t timer, bool state) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return;
 	}
 	if (state) {
-		timerStates |= (1 << (timer + HARD_TIMER_COUNT));
+		timerStates |= (1 << (timer + UHWT_TIMER_COUNT));
 	}
 	else {
-		timerStates &= (~(1 << (timer + HARD_TIMER_COUNT)));
+		timerStates &= (~(1 << (timer + UHWT_TIMER_COUNT)));
 	}
 }
 
@@ -350,9 +350,9 @@ void setTimerClaimed(hard_timer_enum_t timer, bool state) {
  * 
  * @return if parameters generate frequency
  */
-bool sameFreq(hard_timer_freq_t freq, prescalar_enum_t scalar, timertick_t ticks) {
+bool sameFreq(uhwt_freq_t freq, prescalar_enum_t scalar, timertick_t ticks) {
 
-	if (F_CPU % ((hard_timer_freq_t)getMask(scalar) * (ticks + 1)) != 0) {
+	if (F_CPU % ((uhwt_freq_t)getMask(scalar) * (ticks + 1)) != 0) {
 		return false;
 	}
 	if (calculateFreq(scalar, ticks) != freq) {
@@ -369,12 +369,12 @@ bool sameFreq(hard_timer_freq_t freq, prescalar_enum_t scalar, timertick_t ticks
  * @param scalar pointer to scalar value
  * @param timerTicks pointer to timer tick count
  */
-void getStats(hard_timer_freq_t *freq, hard_timer_enum_t timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
+void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
 
 	*scalar = SCALAR_1;
 	*timerTicks = 0;
 
-	hard_timer_freq_t closestFreq = 0;
+	uhwt_freq_t closestFreq = 0;
 
 	for (uint8_t i = SCALAR_MASK_SIZE - 1; i < SCALAR_MASK_SIZE; i--) {
 
@@ -412,12 +412,12 @@ void getStats(hard_timer_freq_t *freq, hard_timer_enum_t timer, prescalar_enum_t
 	*freq = closestFreq;
 }
 
-bool hardTimerClaimed(hard_timer_enum_t timer) {
+bool hardTimerClaimed(uhwt_timer_t timer) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return false;
 	}
-	return (!!((1 << (HARD_TIMER_COUNT + timer)) & timerStates));
+	return (!!((1 << (UHWT_TIMER_COUNT + timer)) & timerStates));
 }
 
 /**
@@ -427,7 +427,7 @@ bool hardTimerClaimed(hard_timer_enum_t timer) {
  * 
  * @return if timer is available
  */
-bool availableClaim(hard_timer_enum_t timer) {
+bool availableClaim(uhwt_timer_t timer) {
 	if (!hardTimerClaimed(timer) && !hardTimerStarted(timer)) {
 		setTimerClaimed(timer, true);
 		return true;
@@ -435,7 +435,7 @@ bool availableClaim(hard_timer_enum_t timer) {
 	return false;
 }
 
-hard_timer_enum_t claimTimer(hard_timer_claim_s *priority) {
+uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
 
 	// checks priorities
 	if (priority -> slowestTimer) {
@@ -450,16 +450,16 @@ hard_timer_enum_t claimTimer(hard_timer_claim_s *priority) {
 	}
 
 	// uses default order if no priority matched
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (availableClaim(i)) {
 			return i;
 		}
 	}
 
-	return HARD_TIMER_INVALID;
+	return UHWT_TIMER_INVALID;
 }
 
-bool unclaimTimer(hard_timer_enum_t timer) {
+bool unclaimTimer(uhwt_timer_t timer) {
 	if (hardTimerClaimed(timer)) {
 		setTimerClaimed(timer, false);
 		return true;
@@ -501,7 +501,7 @@ bool unclaimTimer(hard_timer_enum_t timer) {
  * @param newScalar scalar to store calculation
  */
 #define SET_NEXT_FREQ(origFreq, origTimer, origTicks, origScalar, newFreq, newTimer, newTicks, newScalar) \
-	hard_timer_freq_t calcFreq = (origFreq); \
+	uhwt_freq_t calcFreq = (origFreq); \
 	getStats(&calcFreq, (newTimer), &(newScalar), &(newTicks)); \
 	if (abs((origFreq) - (newFreq)) > abs((origFreq) - calcFreq)) { \
 		(newFreq) = calcFreq; \
@@ -526,7 +526,7 @@ bool unclaimTimer(hard_timer_enum_t timer) {
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t *timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
+uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
 
 	// returns started timer early
 	if (hardTimerStarted(*timer) && hardTimerClaimed(*timer)) {
@@ -534,13 +534,13 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 	}
 
 	// gets stats for current timer
-	if (!hardTimerStarted(*timer) && *timer != HARD_TIMER_INVALID) {
+	if (!hardTimerStarted(*timer) && *timer != UHWT_TIMER_INVALID) {
 		SET_FIRST_FREQ(*freq, *timer, *freq, *timer, *timerTicks, *scalar);
 		return HARD_TIMER_SLIGHTLY_OFF;
 	}
 
 	// gets best available timer
-	*timer = HARD_TIMER_INVALID;
+	*timer = UHWT_TIMER_INVALID;
 
 	if (*freq < FREQ_MIN_8_COUNTER) {
 		// calculates slow frequencies for timer 1
@@ -564,7 +564,7 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 
 		prescalar_enum_t tempScalar = SCALAR_1;
 		timertick_t tempTicks = 0;
-		hard_timer_freq_t tempFreq = *freq;
+		uhwt_freq_t tempFreq = *freq;
 
 		// gets timer 0
 		if (!hardTimerStarted(TIMER_0_ALIAS) && !hardTimerClaimed(TIMER_0_ALIAS)) {
@@ -574,7 +574,7 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 		// gets timer 1
 		if (!hardTimerStarted(TIMER_1_ALIAS) && !hardTimerClaimed(TIMER_1_ALIAS)) {
 
-			if (*timer == HARD_TIMER_INVALID) {
+			if (*timer == UHWT_TIMER_INVALID) {
 				// timer 0 unavailable
 				SET_FIRST_FREQ(*freq, *timer, tempFreq, TIMER_1_ALIAS, *timerTicks, *scalar);
 			}
@@ -587,7 +587,7 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 		// gets timer 2
 		if (!hardTimerStarted(TIMER_2_ALIAS) && !hardTimerClaimed(TIMER_2_ALIAS)) {
 
-			if (*timer == HARD_TIMER_INVALID) {
+			if (*timer == UHWT_TIMER_INVALID) {
 				// timer 0 and 1 unavailable
 				SET_FIRST_FREQ(*freq, *timer, tempFreq, TIMER_2_ALIAS, *timerTicks, *scalar);
 			}
@@ -597,7 +597,7 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 			}
 		}
 
-		if (*timer == HARD_TIMER_INVALID) {
+		if (*timer == UHWT_TIMER_INVALID) {
 			return HARD_TIMER_FAIL;
 		}
 
@@ -607,9 +607,9 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 	}
 }
 
-bool hardTimerStarted(hard_timer_enum_t timer) {
+bool hardTimerStarted(uhwt_timer_t timer) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return false;
 	}
 	return !!((1 << timer) & timerStates);
@@ -626,11 +626,11 @@ bool hardTimerStarted(hard_timer_enum_t timer) {
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR) &= ~HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR_ENABLE); \
 	sei()
 
-bool cancelHardTimer(hard_timer_enum_t timer) {
+bool cancelHardTimer(uhwt_timer_t timer) {
 
 	if (hardTimerStarted(timer)) {
-		#if HARD_TIMER_COUNT > 0
-			if (timer == HARD_TIMER0) {
+		#if UHWT_TIMER_COUNT > 0
+			if (timer == UHWT_TIMER0) {
 				#if SKIP_TIMER_INDEX != 0
 					CANCEL_HARD_TIMER(0);
 				#else
@@ -638,8 +638,8 @@ bool cancelHardTimer(hard_timer_enum_t timer) {
 				#endif
 			}
 		#endif
-		#if HARD_TIMER_COUNT > 1
-			else if (timer == HARD_TIMER1) {
+		#if UHWT_TIMER_COUNT > 1
+			else if (timer == UHWT_TIMER1) {
 				#if SKIP_TIMER_INDEX < 1
 					CANCEL_HARD_TIMER(2);
 				#else
@@ -647,8 +647,8 @@ bool cancelHardTimer(hard_timer_enum_t timer) {
 				#endif
 			}
 		#endif
-		#if HARD_TIMER_COUNT > 2
-			else if (timer == HARD_TIMER2) {
+		#if UHWT_TIMER_COUNT > 2
+			else if (timer == UHWT_TIMER2) {
 				#if SKIP_TIMER_INDEX < 2
 					CANCEL_HARD_TIMER(3);
 				#else
@@ -679,12 +679,12 @@ bool cancelHardTimer(hard_timer_enum_t timer) {
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR_ENABLE); \
 	sei()
 
-bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_function_ptr_t function, void* params, hard_timer_priority_t priority) {
+bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
 
 	if (function == NULL || freq == NULL || timer == NULL) {
 		return false;
 	}
-	if (*freq == (hard_timer_freq_t)0 || *freq > HARD_TIMER_FREQ_MAX) {
+	if (*freq == (uhwt_freq_t)0 || *freq > UHWT_TIMER_FREQ_MAX) {
 		return false;
 	}
 
@@ -699,8 +699,8 @@ bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_
 
 		setHardTimerFunction(*timer, function, params);
 
-		#if HARD_TIMER_COUNT > 0
-			if (*timer == HARD_TIMER0) {
+		#if UHWT_TIMER_COUNT > 0
+			if (*timer == UHWT_TIMER0) {
 				#if SKIP_TIMER_INDEX != 0
 					SET_HARD_TIMER(0, scalar, timerTicks, function, params);
 				#else
@@ -708,8 +708,8 @@ bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_
 				#endif
 			}
 		#endif
-		#if HARD_TIMER_COUNT > 1
-			else if (*timer == HARD_TIMER1) {
+		#if UHWT_TIMER_COUNT > 1
+			else if (*timer == UHWT_TIMER1) {
 				#if SKIP_TIMER_INDEX < 1
 					SET_HARD_TIMER(2, scalar, timerTicks, function, params);
 				#else
@@ -717,8 +717,8 @@ bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_
 				#endif
 			}
 		#endif
-		#if HARD_TIMER_COUNT > 2
-			else if (*timer == HARD_TIMER2) {
+		#if UHWT_TIMER_COUNT > 2
+			else if (*timer == UHWT_TIMER2) {
 				#if SKIP_TIMER_INDEX < 2
 					SET_HARD_TIMER(3, scalar, timerTicks, function, params);
 				#else

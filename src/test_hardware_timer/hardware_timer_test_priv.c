@@ -26,11 +26,11 @@
 	#warning "Testing hardware_timer with C"
 #endif
 
-#if HARD_TIMER_COUNT > 0
+#if UHWT_TIMER_COUNT > 0
 
 #define TEST_SLOW_FREQ 10 // frequency for testing slow timing
 #ifndef TEST_FAST_FREQ
-	#define TEST_FAST_FREQ HARD_TIMER_FREQ_MAX // target frequency
+	#define TEST_FAST_FREQ UHWT_TIMER_FREQ_MAX // target frequency
 #endif
 
 /**
@@ -59,7 +59,7 @@
  * Tests if timer is invalid timer or not
  */
 #define TIMER_NOT_INVALID(timer) \
-	if (timer != HARD_TIMER_INVALID) { \
+	if (timer != UHWT_TIMER_INVALID) { \
 		TEST_FAIL_MESSAGE(setTimerFail); \
 	}
 
@@ -135,9 +135,9 @@ void HARD_TIMER_RAM_ATTR(testTimingFunctionParams) testTimingFunctionParams(void
  * Resets all timers to off and unclaimed
  */
 void resetTimers() {
-	for (int i = 0; i < HARD_TIMER_COUNT; i++) {
-		unclaimTimer((hard_timer_enum_t)i);
-		cancelHardTimer((hard_timer_enum_t)i);
+	for (int i = 0; i < UHWT_TIMER_COUNT; i++) {
+		unclaimTimer((uhwt_timer_t)i);
+		cancelHardTimer((uhwt_timer_t)i);
 	}
 }
 
@@ -147,7 +147,7 @@ void resetTimers() {
  * @param timer timer to test
  * @param start whether timer should or shouldn't be started
  */
-void testGetStartState(hard_timer_enum_t timer, bool start) {
+void testGetStartState(uhwt_timer_t timer, bool start) {
 	if (hardTimerStarted(timer) != start) {
 		TEST_FAIL_MESSAGE(invalidStartFail);
 	}
@@ -160,8 +160,8 @@ void testGetStartState(hard_timer_enum_t timer, bool start) {
  */
 void testProgramStart() {
 	resetTimers();
-	for (int i = 0; i < HARD_TIMER_COUNT; i++) {
-		testGetStartState((hard_timer_enum_t)i, false);
+	for (int i = 0; i < UHWT_TIMER_COUNT; i++) {
+		testGetStartState((uhwt_timer_t)i, false);
 	}
 	TEST_PASS();
 }
@@ -171,19 +171,19 @@ void testProgramStart() {
  */
 void testRepeat() {
 	resetTimers();
-	hard_timer_freq_t freq = TEST_CASES_FREQ;
-	hard_timer_enum_t timer = HARD_TIMER_INVALID;
+	uhwt_freq_t freq = TEST_CASES_FREQ;
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
 
-	if (!setHardTimer(&timer, &freq, &testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (!setHardTimer(&timer, &freq, &testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(startFail);
 	}
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		TEST_FAIL_MESSAGE(noSetTimerFail);
 	}
 
-	hard_timer_enum_t secondTimer = timer;
+	uhwt_timer_t secondTimer = timer;
 	freq = TEST_CASES_FREQ;
-	if (!setHardTimer(&secondTimer, &freq, &testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (!setHardTimer(&secondTimer, &freq, &testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(startFail);
 	}
 	if (timer == secondTimer) {
@@ -206,43 +206,43 @@ void testClaims(void) {
 
 	resetTimers();
 
-	hard_timer_enum_t timer = HARD_TIMER_INVALID;
-	hard_timer_freq_t freq = TEST_CASES_FREQ;
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
+	uhwt_freq_t freq = TEST_CASES_FREQ;
 
 	// unclaim
 	if (unclaimTimer(timer)) {
 		TEST_FAIL_MESSAGE(unclaimInvalidFail);
 	}
-	if (unclaimTimer(HARD_TIMER0)) {
+	if (unclaimTimer(UHWT_TIMER0)) {
 		TEST_FAIL_MESSAGE(unclaimNotClaimedFail);
 	}
 
 	// none claimed
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (hardTimerClaimed(i)) {
 			TEST_FAIL_MESSAGE(notClaimedFail);
 		}
 	}
 
 	// claim
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
-		if (claimTimer(NULL) == HARD_TIMER_INVALID) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
+		if (claimTimer(NULL) == UHWT_TIMER_INVALID) {
 			TEST_FAIL_MESSAGE(claimLoopFail);
 		}
 	}
-	if (claimTimer(NULL) != HARD_TIMER_INVALID) {
+	if (claimTimer(NULL) != UHWT_TIMER_INVALID) {
 		TEST_FAIL_MESSAGE(allClaimedFail);
 	}
 
 	// all claimed
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (!hardTimerClaimed(i)) {
 			TEST_FAIL_MESSAGE(isClaimedFail);
 		}
 	}
 
 	// remove all claims and test unclaimed
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (!unclaimTimer(i)) {
 			TEST_FAIL_MESSAGE(unclaimLoopFail);
 		}
@@ -252,21 +252,21 @@ void testClaims(void) {
 	}
 
 	// claim active timer
-	if (!setHardTimer(&timer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (!setHardTimer(&timer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(noStartFail);
 	}
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT - 1; i++) {
-		if (claimTimer(NULL) == HARD_TIMER_INVALID) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT - 1; i++) {
+		if (claimTimer(NULL) == UHWT_TIMER_INVALID) {
 			TEST_FAIL_MESSAGE(claimLoopFail);
 		}
 	}
-	if (claimTimer(NULL) != HARD_TIMER_INVALID) {
+	if (claimTimer(NULL) != UHWT_TIMER_INVALID) {
 		TEST_FAIL_MESSAGE(claimedActiveFail);
 	}
 
 	// remove all claims
 	bool claimed = false;
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (!unclaimTimer(i)) {
 			if (!claimed) {
 				claimed = true;
@@ -280,7 +280,7 @@ void testClaims(void) {
 	if (!cancelHardTimer(timer)) {
 		TEST_FAIL_MESSAGE(cancelFail);
 	}
-	timer = HARD_TIMER_INVALID;
+	timer = UHWT_TIMER_INVALID;
 	TEST_PASS();
 }
 
@@ -291,23 +291,23 @@ void testStart(void) {
 
 	resetTimers();
 
-	hard_timer_enum_t timer = HARD_TIMER_INVALID;
-	hard_timer_freq_t freq = TEST_CASES_FREQ;
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
+	uhwt_freq_t freq = TEST_CASES_FREQ;
 
 	// null parameters
-	if (setHardTimer(NULL, NULL, NULL, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (setHardTimer(NULL, NULL, NULL, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(allNullFail);
 	}
 	TIMER_NOT_INVALID(timer);
-	if (setHardTimer(&timer, NULL, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (setHardTimer(&timer, NULL, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(freqNullFail);
 	}
 	TIMER_NOT_INVALID(timer);
-	if (setHardTimer(&timer, &freq, NULL, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (setHardTimer(&timer, &freq, NULL, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(funcNullFail);
 	}
 	TIMER_NOT_INVALID(timer);
-	if (cancelHardTimer(HARD_TIMER_INVALID)) {
+	if (cancelHardTimer(UHWT_TIMER_INVALID)) {
 		TEST_FAIL_MESSAGE(cancelInvalidFail);
 	}
 
@@ -315,36 +315,36 @@ void testStart(void) {
 	if (cancelHardTimer(timer)) {
 		TEST_FAIL_MESSAGE(cancelFail);
 	}
-	if (cancelHardTimer(HARD_TIMER0)) {
+	if (cancelHardTimer(UHWT_TIMER0)) {
 		TEST_FAIL_MESSAGE(cancelFail);
 	}
 
 	// set all timers
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
-		hard_timer_enum_t loopTimer = HARD_TIMER_INVALID;
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
+		uhwt_timer_t loopTimer = UHWT_TIMER_INVALID;
 		freq = TEST_CASES_FREQ;
-		if (!setHardTimer(&loopTimer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+		if (!setHardTimer(&loopTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 			TEST_FAIL_MESSAGE(setLoopFail);
 		}
 		if (!hardTimerStarted(loopTimer)) {
 			TEST_FAIL_MESSAGE(startedLoopFail);
 		}
 	}
-	if (setHardTimer(NULL, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (setHardTimer(NULL, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(maxTimerFail);
 	}
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
-		if (!cancelHardTimer((hard_timer_enum_t)i)) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
+		if (!cancelHardTimer((uhwt_timer_t)i)) {
 			TEST_FAIL_MESSAGE(cancelLoopFail);
 		}
-		if (hardTimerStarted((hard_timer_enum_t)i)) {
+		if (hardTimerStarted((uhwt_timer_t)i)) {
 			TEST_FAIL_MESSAGE(didntStopFail);
 		}
 	}
 
 	// 0 frequency
 	freq = 0;
-	if (setHardTimer(&timer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (setHardTimer(&timer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(freq0Fail);
 	}
 	TIMER_NOT_INVALID(timer);
@@ -357,11 +357,11 @@ void testStart(void) {
 	if (hardTimerStarted(timer)) {
 		TEST_FAIL_MESSAGE(notStartFail);
 	}
-	timer = HARD_TIMER_INVALID;
+	timer = UHWT_TIMER_INVALID;
 
 	// over max frequency
-	freq = HARD_TIMER_FREQ_MAX + 1;
-	if (setHardTimer(&timer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	freq = UHWT_TIMER_FREQ_MAX + 1;
+	if (setHardTimer(&timer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(freqMaxFail);
 	}
 	TIMER_NOT_INVALID(timer);
@@ -374,26 +374,26 @@ void testStart(void) {
 	if (hardTimerStarted(timer)) {
 		TEST_FAIL_MESSAGE(notStartFail);
 	}
-	timer = HARD_TIMER_INVALID;
+	timer = UHWT_TIMER_INVALID;
 	TEST_PASS();
 }
 
 /**
  * Tests timer priorities are set according
- * to 'hard_timer.h'. Best Timer ignored
+ * to 'universal_hardware_timer.h'. Best Timer ignored
  */
 void testTimerPriority() {
 	
 	resetTimers();
 
-	hard_timer_enum_t timer = HARD_TIMER_INVALID;
-	hard_timer_enum_t secondTimer = HARD_TIMER_INVALID;
-	hard_timer_freq_t freq = TEST_CASES_FREQ;
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
+	uhwt_timer_t secondTimer = UHWT_TIMER_INVALID;
+	uhwt_freq_t freq = TEST_CASES_FREQ;
 
 	// test timer claimed and unstarted
 	timer = claimTimer(NULL);
 	secondTimer = timer;
-	if (!setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (!setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(pNotStartedClaimedFail);
 	}
 
@@ -403,7 +403,7 @@ void testTimerPriority() {
 
 	// test timer claimed and started
 	freq = TEST_CASES_FREQ;
-	if (setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(pStartedClaimedFail);
 	}
 
@@ -414,7 +414,7 @@ void testTimerPriority() {
 	// test timer unclaimed and started
 	unclaimTimer(secondTimer);
 
-	if (!setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (!setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(pStartedUnclaimedFail);
 	}
 
@@ -431,9 +431,9 @@ void testTimerPriority() {
  * @param buffer amount actual freq can be off
  * @param priority priority to run timer function at
  */
-void testTiming(hard_timer_freq_t freq, uint8_t buffer, hard_timer_priority_t priority) {
+void testTiming(uhwt_freq_t freq, uint8_t buffer, uhwt_priority_t priority) {
 	resetTimers();
-	hard_timer_enum_t functionTimer = HARD_TIMER_INVALID;
+	uhwt_timer_t functionTimer = UHWT_TIMER_INVALID;
 
 	testGetStartState(functionTimer, false);
 	hardTimerCount = 0U;
@@ -468,7 +468,7 @@ void testFastTiming() {
 	testTiming(TEST_FAST_FREQ, FAST_TEST_BUFFER, FAST_TIMER_PRIORITY);
 }
 
-void testTimers() {
+void testUHWT() {
 	RUN_TEST(&testProgramStart);
 	RUN_TEST(&testRepeat);
 	RUN_TEST(&testClaims);
@@ -487,7 +487,7 @@ void passTimers() {
 	TEST_IGNORE_MESSAGE(passTimerIgnore);
 }
 
-void testTimers() {
+void testUHWT() {
 	RUN_TEST(&passTimers);
 }
 #endif

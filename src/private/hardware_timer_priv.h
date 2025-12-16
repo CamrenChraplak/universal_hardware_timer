@@ -54,13 +54,53 @@
  */
 #define HARD_TIMER_CONCATENATE3(a, b, c) a ## b ## c
 
-#if HARDWARE_TIMER_SUPPORT_AVR
-	#define HARDWARE_TIMER_NO_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
+// codes when getting hard timer stats
+typedef enum {
+	HARD_TIMER_OK, // hard timer stats retrieved
+	HARD_TIMER_SLIGHTLY_OFF, // retrieved values that aren't completely accurate
+	HARD_TIMER_FAIL, // failed to get timer values
+} uhwt_status_t;
+
+#if UHWT_SUPPORT_ESP32
+	#include <esp_idf_version.h>
+	#if ESP_IDF_VERSION_MAJOR == 4
+		#include <driver/timer.h>
+		typedef timer_isr_t uhwt_platform_callback_ptr_t; // specific platform callback pointer type
+	#elif ESP_IDF_VERSION_MAJOR == 5
+		#include <driver/gptimer.h>
+		typedef gptimer_alarm_cb_t uhwt_platform_callback_ptr_t; // specific platform callback pointer type
+	#else
+		#error "Must use esp-idf version 4.X.X - 5.X.X"
+	#endif
+#elif UHWT_SUPPORT_PICO
+	#include <pico.h>
+	#include <pico/time.h>
+	typedef repeating_timer_callback_t uhwt_platform_callback_ptr_t; // specific platform callback pointer type
+#elif UHWT_SUPPORT_AVR
+	typedef void* uhwt_platform_callback_ptr_t; // specific platform callback pointer type
+	#define UHWT_NO_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
 #endif
 
-#ifdef HARDWARE_TIMER_NO_CALLBACK_SUPPORT
-	extern hard_timer_function_ptr_t hardTimerFunctions[HARD_TIMER_COUNT];
-	extern void* hardTimerParams[HARD_TIMER_COUNT];
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+/**
+ * Gets callback function used for setting timer
+ * 
+ * @param timer timer to get
+ * 
+ * @return pointer to callback function
+ */
+uhwt_platform_callback_ptr_t getHardTimerCallback(uhwt_timer_t timer);
+
+#ifdef __cplusplus
+}
+#endif
+
+#ifdef UHWT_NO_CALLBACK_SUPPORT
+	extern uhwt_function_ptr_t hardTimerFunctions[UHWT_TIMER_COUNT];
+	extern uhwt_params_ptr_t hardTimerParams[UHWT_TIMER_COUNT];
 #endif
 
 #endif

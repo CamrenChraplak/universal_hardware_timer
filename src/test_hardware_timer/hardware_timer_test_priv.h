@@ -23,7 +23,7 @@
 
 typedef const char memCharString;
 
-#if HARDWARE_TIMER_SUPPORT_AVR
+#if UHWT_SUPPORT_AVR
 	#include <avr/pgmspace.h>
 	#define PROG_FLASH PROGMEM // storage specifier for flash space
 #else

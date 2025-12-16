@@ -16,8 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef HARDWARE_TIMER_TEST_H
-#define HARDWARE_TIMER_TEST_H
+#ifndef UNIVERSAL_HARDWARE_TIMER_TEST_H
+#define UNIVERSAL_HARDWARE_TIMER_TEST_H
 
 #include "universal_hardware_timer.h"
 
@@ -28,7 +28,7 @@ extern "C" {
 /**
  * Tests all timer tests at once
  */
-void testTimers();
+void testUHWT();
 
 #ifdef __cplusplus
 }

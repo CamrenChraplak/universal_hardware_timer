@@ -23,7 +23,7 @@
 
 #include "../private/hardware_timer_priv.h"
 
-#if HARDWARE_TIMER_SUPPORT_PICO
+#if UHWT_SUPPORT_PICO
 
 #include <pico/time.h>
 
@@ -36,11 +36,11 @@ typedef enum {
 typedef int64_t timertick_t; // timer tick type
 
 // hardware timers
-struct repeating_timer timers[HARD_TIMER_COUNT];
+struct repeating_timer timers[UHWT_TIMER_COUNT];
 
-#if HARD_TIMER_COUNT <= 8
+#if UHWT_TIMER_COUNT <= 8
 	typedef uint8_t storage_t; // storage type for timer states
-#elif HARD_TIMER_COUNT <= 16
+#elif UHWT_TIMER_COUNT <= 16
 	typedef uint16_t storage_t; // storage type for timer states
 #endif
 
@@ -54,8 +54,8 @@ storage_t timersClaimed = 0U; // stores timer claimed state
  * 
  * @return pointer to timer selected
  */
-struct repeating_timer* getTimer(hard_timer_enum_t timer) {
-	if (timer >= 0 && timer < HARD_TIMER_COUNT) {
+struct repeating_timer* getTimer(uhwt_timer_t timer) {
+	if (timer >= 0 && timer < UHWT_TIMER_COUNT) {
 		return &timers[timer];
 	}
 	return NULL;
@@ -67,9 +67,9 @@ struct repeating_timer* getTimer(hard_timer_enum_t timer) {
  * @param timer timer to set
  * @param state whether or not timer is started
  */
-void setTimerStarted(hard_timer_enum_t timer, bool state) {
+void setTimerStarted(uhwt_timer_t timer, bool state) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return;
 	}
 	if (state) {
@@ -86,9 +86,9 @@ void setTimerStarted(hard_timer_enum_t timer, bool state) {
  * @param timer timer to set
  * @param state whether or not timer is claimed
  */
-void setTimerClaimed(hard_timer_enum_t timer, bool state) {
+void setTimerClaimed(uhwt_timer_t timer, bool state) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return;
 	}
 	if (state) {
@@ -104,25 +104,25 @@ void setTimerClaimed(hard_timer_enum_t timer, bool state) {
  * 
  * @return available timer
  */
-hard_timer_enum_t getNextTimer(void) {
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+uhwt_timer_t getNextTimer(void) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (!hardTimerStarted(i) && !hardTimerClaimed(i)) {
-			return (hard_timer_enum_t)i;
+			return (uhwt_timer_t)i;
 		}
 	}
-	return HARD_TIMER_INVALID;
+	return UHWT_TIMER_INVALID;
 }
 
-hard_timer_enum_t claimTimer(hard_timer_claim_s *priority) {
+uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
 
-	hard_timer_enum_t timer = getNextTimer();
-	if (timer != HARD_TIMER_INVALID) {
+	uhwt_timer_t timer = getNextTimer();
+	if (timer != UHWT_TIMER_INVALID) {
 		setTimerClaimed(timer, true);
 	}
 	return timer;
 }
 
-bool unclaimTimer(hard_timer_enum_t timer) {
+bool unclaimTimer(uhwt_timer_t timer) {
 	if (hardTimerClaimed(timer)) {
 		setTimerClaimed(timer, false);
 		return true;
@@ -130,9 +130,9 @@ bool unclaimTimer(hard_timer_enum_t timer) {
 	return false;
 }
 
-bool hardTimerClaimed(hard_timer_enum_t timer) {
+bool hardTimerClaimed(uhwt_timer_t timer) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return false;
 	}
 	return !!(timersClaimed & (((storage_t)1) << (timer)));
@@ -152,9 +152,9 @@ bool hardTimerClaimed(hard_timer_enum_t timer) {
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t *timer, prescalar_t *scalar, timertick_t *timerTicks) {
+uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_t *scalar, timertick_t *timerTicks) {
 
-	hard_timer_status_t status = HARD_TIMER_OK;
+	uhwt_status_t status = HARD_TIMER_OK;
 
 	// freq doesn't divide evenly with us
 	if (PICO_SDK_TIMER_MAX % *freq != 0) {
@@ -162,7 +162,7 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 	}
 
 	//target in us
-	hard_timer_freq_t targetUS = PICO_SDK_TIMER_MAX / *freq;
+	uhwt_freq_t targetUS = PICO_SDK_TIMER_MAX / *freq;
 
 	if (targetUS % THOUSAND == 0 && status == HARD_TIMER_OK) {
 		*scalar = SCALAR_MS;
@@ -180,26 +180,26 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 		*freq = PICO_SDK_TIMER_MAX / *timerTicks;
 	}
 
-	if ((!hardTimerClaimed(*timer) && hardTimerStarted(*timer)) || *timer == HARD_TIMER_INVALID) {
+	if ((!hardTimerClaimed(*timer) && hardTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
 		*timer = getNextTimer();
 	}
 	
-	if (*timer == HARD_TIMER_INVALID) {
+	if (*timer == UHWT_TIMER_INVALID) {
 		return HARD_TIMER_FAIL;
 	}
 
 	return status;
 }
 
-bool hardTimerStarted(hard_timer_enum_t timer) {
+bool hardTimerStarted(uhwt_timer_t timer) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return false;
 	}
 	return !!((((storage_t)1) << timer) & timersStarted);
 }
 
-bool cancelHardTimer(hard_timer_enum_t timer) {
+bool cancelHardTimer(uhwt_timer_t timer) {
 
 	if (hardTimerStarted(timer)) {
 		struct repeating_timer* timerPtr = getTimer(timer);
@@ -213,12 +213,12 @@ bool cancelHardTimer(hard_timer_enum_t timer) {
 	return false;
 }
 
-bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_function_ptr_t function, void* params, hard_timer_priority_t priority) {
+bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
 
 	if (function == NULL || freq == NULL || timer == NULL) {
 		return false;
 	}
-	if (*freq == (hard_timer_freq_t)0 || *freq > HARD_TIMER_FREQ_MAX) {
+	if (*freq == (uhwt_freq_t)0 || *freq > UHWT_TIMER_FREQ_MAX) {
 		return false;
 	}
 

@@ -32,7 +32,7 @@
 
 #include "../private/hardware_timer_priv.h"
 
-#if HARDWARE_TIMER_SUPPORT_AVR
+#if UHWT_SUPPORT_AVR
 
 #if F_CPU == 16000000L
 	#define FREQ_MIN_8_COUNTER 62 // min frequency for 8 bit counter

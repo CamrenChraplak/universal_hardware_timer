@@ -20,7 +20,7 @@
 
 #if !defined(USE_UNITY) && !defined(ARDUINO)
 
-#if HARDWARE_TIMER_SUPPORT_ESP32
+#if UHWT_SUPPORT_ESP32
 	#if ESP_IDF_VERSION_MAJOR == 5
 		#define PRINT_LONG_SPECIFIER
 	#endif

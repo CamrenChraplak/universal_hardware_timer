@@ -16,8 +16,8 @@
 	along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
-#ifndef HARDWARE_TIMER_H
-#define HARDWARE_TIMER_H
+#ifndef UNIVERSAL_HARDWARE_TIMER_H
+#define UNIVERSAL_HARDWARE_TIMER_H
 
 #include <stdint.h>
 #include <stdbool.h>
@@ -30,60 +30,53 @@
  * Library types and constants
 ****************************/
 
-typedef uint32_t hard_timer_freq_t; // hard timer frequency variable
-typedef uint8_t hard_timer_priority_t; // hard timer execute priority variable
+typedef uint32_t uhwt_freq_t; // hard timer frequency variable
+typedef uint8_t uhwt_priority_t; // hard timer execute priority variable
+typedef void (*uhwt_function_ptr_t) (void*); // timer callback function pointer
+typedef void* uhwt_params_ptr_t; // timer callback parameter type
 
 // hardware timer priority for claiming timers
 typedef struct {
 	bool slowestTimer: 1; // whether to use slowest timer or not
 	bool mostAccurateTimer: 1; // whether to use most accurate timer or not
-} hard_timer_claim_s;
+} uhwt_claim_s;
 
-// codes when getting hard timer stats
-typedef enum {
-	HARD_TIMER_OK, // hard timer stats retrieved
-	HARD_TIMER_SLIGHTLY_OFF, // retrieved values that aren't completely accurate
-	HARD_TIMER_FAIL, // failed to get timer values
-} hard_timer_status_t;
-
-typedef void (*hard_timer_function_ptr_t) (void*); // timer callback function pointer
-
-#define HARD_TIMER_PRIORITY_DEFAULT 0 // default hard timer priority
-#define HARD_TIMER_MAX_COUNT 16 // max number of hardware timers supported in library
-#define HARD_TIMER_INVALID_LIT -1 // literal number version of HARD_TIMER_INVALID
+#define UHWT_PRIORITY_DEFAULT 0 // default hard timer priority
+#define UHWT_TIMER_MAX_COUNT 16 // max number of hardware timers supported in library
+#define UHWT_TIMER_INVALID_LIT -1 // literal number version of UHWT_TIMER_INVALID
 
 /****************************
  * Platform detection
 ****************************/
 
 // if a supported avr platform is selected
-#define HARDWARE_TIMER_SUPPORT_AVR ( \
+#define UHWT_SUPPORT_AVR ( \
 	defined(__AVR_ATmega328P__) \
 )
 
 // if a supported esp32 platform is selected
-#define HARDWARE_TIMER_SUPPORT_ESP32 ( \
+#define UHWT_SUPPORT_ESP32 ( \
 	defined(ESP32) \
 )
 
 // if a supported pico platform is selected
-#define HARDWARE_TIMER_SUPPORT_PICO ( \
+#define UHWT_SUPPORT_PICO ( \
 	defined(PICO_RP2040) || \
 	defined(PICO_RP2350) \
 )
 
 // if a supported platform is selected
-#define HARDWARE_TIMER_SUPPORT ( \
-	HARDWARE_TIMER_SUPPORT_AVR || \
-	HARDWARE_TIMER_SUPPORT_ESP32 || \
-	HARDWARE_TIMER_SUPPORT_PICO \
+#define UHWT_SUPPORT ( \
+	UHWT_SUPPORT_AVR || \
+	UHWT_SUPPORT_ESP32 || \
+	UHWT_SUPPORT_PICO \
 )
 
 /****************************
  * Platform defines
 ****************************/
 
-#if HARDWARE_TIMER_SUPPORT_ESP32
+#if UHWT_SUPPORT_ESP32
 
 	/****************************
 	 * Timer Config
@@ -91,22 +84,10 @@ typedef void (*hard_timer_function_ptr_t) (void*); // timer callback function po
 	 * Only 4 hardware timers available
 	****************************/
 
-	#include <esp_idf_version.h>
+	#define UHWT_TIMER_FREQ_MAX 200000 // max frequency user set timer can be
+	#define UHWT_TIMER_COUNT 4 // amount of hardware timers to use
 
-	#define HARD_TIMER_FREQ_MAX 200000 // max frequency user set timer can be
-	#define HARD_TIMER_COUNT 4 // amount of hardware timers to use
-
-	#if ESP_IDF_VERSION_MAJOR == 4
-		#include <driver/timer.h>
-		typedef timer_isr_t hard_timer_callback_ptr_t; // callback pointer type
-	#elif ESP_IDF_VERSION_MAJOR == 5
-		#include <driver/gptimer.h>
-		typedef gptimer_alarm_cb_t hard_timer_callback_ptr_t; // callback pointer type
-	#else
-		#error "Must use esp-idf version 4.X.X - 5.X.X"
-	#endif
-
-#elif HARDWARE_TIMER_SUPPORT_PICO
+#elif UHWT_SUPPORT_PICO
 
 	/****************************
 	 * Timer Config
@@ -118,14 +99,10 @@ typedef void (*hard_timer_function_ptr_t) (void*); // timer callback function po
 	 * Only 14 timers after api usage
 	****************************/
 
-	#define HARD_TIMER_FREQ_MAX 250000 // max frequency user set timer can be
-	#define HARD_TIMER_COUNT 14 // amount of hardware timers to use
+	#define UHWT_TIMER_FREQ_MAX 250000 // max frequency user set timer can be
+	#define UHWT_TIMER_COUNT 14 // amount of hardware timers to use
 
-	#include <pico.h>
-	#include <pico/time.h>
-	typedef repeating_timer_callback_t hard_timer_callback_ptr_t; // callback pointer type
-
-#elif HARDWARE_TIMER_SUPPORT_AVR
+#elif UHWT_SUPPORT_AVR
 
 	/****************************
 	 * Timer Config
@@ -138,19 +115,16 @@ typedef void (*hard_timer_function_ptr_t) (void*); // timer callback function po
 	****************************/
 
 	#if F_CPU == 16000000L
-		#define HARD_TIMER_FREQ_MAX 120000 // max frequency user set timer can be
+		#define UHWT_TIMER_FREQ_MAX 120000 // max frequency user set timer can be
 	#else
-		#error "F_CPU must be (MHz) 16"
+		#error "F_CPU must be 16 (MHz)"
 	#endif
 
-	#ifdef OVERRIDE_ARDUINO_TIMER
-		#define HARD_TIMER_COUNT 3 // amount of hardware timers to use
+	#ifdef UHWT_OVERRIDE_ARDUINO_TIMER
+		#define UHWT_TIMER_COUNT 3 // amount of hardware timers to use
 	#else
-		#define HARD_TIMER_COUNT 2 // amount of hardware timers to use
+		#define UHWT_TIMER_COUNT 2 // amount of hardware timers to use
 	#endif
-
-	typedef void* hard_timer_callback_ptr_t; // callback pointer type
-	#define NO_TIMER_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
 
 #else
 
@@ -160,65 +134,65 @@ typedef void (*hard_timer_function_ptr_t) (void*); // timer callback function po
 	 * No hardware timers available
 	****************************/
 
-	#define HARD_TIMER_FREQ_MAX 0 // max frequency user set timer can be
+	#define UHWT_TIMER_FREQ_MAX 0 // max frequency user set timer can be
 
-	#ifndef HARD_TIMER_COUNT
-		#define HARD_TIMER_COUNT 0 // amount of hardware timers to use
+	#ifndef UHWT_TIMER_COUNT
+		#define UHWT_TIMER_COUNT 0 // amount of hardware timers to use
 	#endif
 
 #endif
 
 typedef enum { // hardware timer enum type
-	HARD_TIMER_INVALID = -1, // invalid counter
-	#if HARD_TIMER_COUNT >= 1
-		HARD_TIMER0,
+	UHWT_TIMER_INVALID = -1, // invalid counter
+	#if UHWT_TIMER_COUNT >= 1
+		UHWT_TIMER0,
 	#endif
-	#if HARD_TIMER_COUNT >= 2
-		HARD_TIMER1,
+	#if UHWT_TIMER_COUNT >= 2
+		UHWT_TIMER1,
 	#endif
-	#if HARD_TIMER_COUNT >= 3
-		HARD_TIMER2,
+	#if UHWT_TIMER_COUNT >= 3
+		UHWT_TIMER2,
 	#endif
-	#if HARD_TIMER_COUNT >= 4
-		HARD_TIMER3,
+	#if UHWT_TIMER_COUNT >= 4
+		UHWT_TIMER3,
 	#endif
-	#if HARD_TIMER_COUNT >= 5
-		HARD_TIMER4,
+	#if UHWT_TIMER_COUNT >= 5
+		UHWT_TIMER4,
 	#endif
-	#if HARD_TIMER_COUNT >= 6
-		HARD_TIMER5,
+	#if UHWT_TIMER_COUNT >= 6
+		UHWT_TIMER5,
 	#endif
-	#if HARD_TIMER_COUNT >= 7
-		HARD_TIMER6,
+	#if UHWT_TIMER_COUNT >= 7
+		UHWT_TIMER6,
 	#endif
-	#if HARD_TIMER_COUNT >= 8
-		HARD_TIMER7,
+	#if UHWT_TIMER_COUNT >= 8
+		UHWT_TIMER7,
 	#endif
-	#if HARD_TIMER_COUNT >= 9
-		HARD_TIMER8,
+	#if UHWT_TIMER_COUNT >= 9
+		UHWT_TIMER8,
 	#endif
-	#if HARD_TIMER_COUNT >= 10
-		HARD_TIMER9,
+	#if UHWT_TIMER_COUNT >= 10
+		UHWT_TIMER9,
 	#endif
-	#if HARD_TIMER_COUNT >= 11
-		HARD_TIMER10,
+	#if UHWT_TIMER_COUNT >= 11
+		UHWT_TIMER10,
 	#endif
-	#if HARD_TIMER_COUNT >= 12
-		HARD_TIMER11,
+	#if UHWT_TIMER_COUNT >= 12
+		UHWT_TIMER11,
 	#endif
-	#if HARD_TIMER_COUNT >= 13
-		HARD_TIMER12,
+	#if UHWT_TIMER_COUNT >= 13
+		UHWT_TIMER12,
 	#endif
-	#if HARD_TIMER_COUNT >= 14
-		HARD_TIMER13,
+	#if UHWT_TIMER_COUNT >= 14
+		UHWT_TIMER13,
 	#endif
-	#if HARD_TIMER_COUNT >= 15
-		HARD_TIMER14,
+	#if UHWT_TIMER_COUNT >= 15
+		UHWT_TIMER14,
 	#endif
-	#if HARD_TIMER_COUNT >= 16
-		HARD_TIMER15,
+	#if UHWT_TIMER_COUNT >= 16
+		UHWT_TIMER15,
 	#endif
-} hard_timer_enum_t;
+} uhwt_timer_t;
 
 /****************************
  * Library functions
@@ -235,7 +209,7 @@ extern "C" {
  * 
  * @return timer claimed
  */
-hard_timer_enum_t claimTimer(hard_timer_claim_s *priority);
+uhwt_timer_t claimTimer(uhwt_claim_s *priority);
 
 /**
  * Releases claim on a timer
@@ -244,7 +218,7 @@ hard_timer_enum_t claimTimer(hard_timer_claim_s *priority);
  * 
  * @return if unclaim was successful
  */
-bool unclaimTimer(hard_timer_enum_t timer);
+bool unclaimTimer(uhwt_timer_t timer);
 
 /**
  * Tests if timer is claimed already or not
@@ -253,7 +227,7 @@ bool unclaimTimer(hard_timer_enum_t timer);
  * 
  * @return if timer is claimed or not
  */
-bool hardTimerClaimed(hard_timer_enum_t timer);
+bool hardTimerClaimed(uhwt_timer_t timer);
 
 /**
  * Stops hardware timer from executing
@@ -262,7 +236,7 @@ bool hardTimerClaimed(hard_timer_enum_t timer);
  * 
  * @return if timer was successfully canceled
  */
-bool cancelHardTimer(hard_timer_enum_t timer);
+bool cancelHardTimer(uhwt_timer_t timer);
 
 /**
  * Starts hardware timer execution
@@ -273,7 +247,7 @@ bool cancelHardTimer(hard_timer_enum_t timer);
  * @param params parameters to pass to callback function
  * @param priority priority to run timer at (0 min, 255 max)
  * 
- * setHardTimer(HARD_TIMER_INVALID, ...):
+ * setHardTimer(UHWT_TIMER_INVALID, ...):
  * 
  *                Claimed:     Unclaimed:
  * 
@@ -281,19 +255,19 @@ bool cancelHardTimer(hard_timer_enum_t timer);
  * 
  * Not Started:       -,       Best Timer
  * 
- * setHardTimer(HARD_TIMER#, ...):
+ * setHardTimer(UHWT_TIMER#, ...):
  * 
  *                Claimed:     Unclaimed:
  * 
  * Started:         Fail,      Best Timer
  * 
- * Not Started:  HARD_TIMER#,  HARD_TIMER#
+ * Not Started:  UHWT_TIMER#,  UHWT_TIMER#
  * 
  * @return if timer was successfully set
  */
-bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq,
-		hard_timer_function_ptr_t function, void* params,
-		hard_timer_priority_t priority);
+bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params,
+		uhwt_priority_t priority);
 
 /**
  * Gets if selected timer was started
@@ -302,7 +276,7 @@ bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq,
  * 
  * @return if timer was started
  */
-bool hardTimerStarted(hard_timer_enum_t timer);
+bool hardTimerStarted(uhwt_timer_t timer);
 
 /**
  * Sets function to execute for timer ISR
@@ -312,17 +286,8 @@ bool hardTimerStarted(hard_timer_enum_t timer);
  * 
  * @return if successfully set
  */
-bool setHardTimerFunction(hard_timer_enum_t timer,
-		hard_timer_function_ptr_t function, void* params);
-
-/**
- * Gets callback function used for setting timer
- * 
- * @param timer timer to get
- * 
- * @return pointer to callback function
- */
-hard_timer_callback_ptr_t getHardTimerCallback(hard_timer_enum_t timer);
+bool setHardTimerFunction(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
 #ifdef __cplusplus
 }

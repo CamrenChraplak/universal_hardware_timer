@@ -29,7 +29,7 @@
 
 #include "../private/hardware_timer_priv.h"
 
-#if HARDWARE_TIMER_SUPPORT_ESP32
+#if UHWT_SUPPORT_ESP32
 
 #include <freertos/FreeRTOS.h>
 #include <freertos/task.h>
@@ -61,16 +61,16 @@ static hard_timer_group_t timerGroups[4] = {
 
 // hardware timer pointers
 hard_timer_group_t *timers[] = {
-	#if HARD_TIMER_COUNT >= 1
+	#if UHWT_TIMER_COUNT >= 1
 		NULL,
 	#endif
-	#if HARD_TIMER_COUNT >= 2
+	#if UHWT_TIMER_COUNT >= 2
 		NULL,
 	#endif
-	#if HARD_TIMER_COUNT >= 3
+	#if UHWT_TIMER_COUNT >= 3
 		NULL,
 	#endif
-	#if HARD_TIMER_COUNT >= 4
+	#if UHWT_TIMER_COUNT >= 4
 		NULL,
 	#endif
 };
@@ -84,30 +84,30 @@ typedef hard_timer_group_t** timer_ptr_t;
 #include <hal/timer_types.h>
 #include <driver/gptimer.h>
 
-#if HARD_TIMER_COUNT >= 1
+#if UHWT_TIMER_COUNT >= 1
 	gptimer_handle_t handler0 = NULL;
 #endif
-#if HARD_TIMER_COUNT >= 2
+#if UHWT_TIMER_COUNT >= 2
 	gptimer_handle_t handler1 = NULL;
 #endif
-#if HARD_TIMER_COUNT >= 3
+#if UHWT_TIMER_COUNT >= 3
 	gptimer_handle_t handler2 = NULL;
 #endif
-#if HARD_TIMER_COUNT >= 4
+#if UHWT_TIMER_COUNT >= 4
 	gptimer_handle_t handler3 = NULL;
 #endif
 
 gptimer_handle_t *timers[] = {
-	#if HARD_TIMER_COUNT >= 1
+	#if UHWT_TIMER_COUNT >= 1
 		&handler0,
 	#endif
-	#if HARD_TIMER_COUNT >= 2
+	#if UHWT_TIMER_COUNT >= 2
 		&handler1,
 	#endif
-	#if HARD_TIMER_COUNT >= 3
+	#if UHWT_TIMER_COUNT >= 3
 		&handler2,
 	#endif
-	#if HARD_TIMER_COUNT >= 4
+	#if UHWT_TIMER_COUNT >= 4
 		&handler3,
 	#endif
 };
@@ -124,13 +124,13 @@ uint8_t claimed = 0U; // stores whether timers were claimed or not
 /**
  * Scales input priority
  * 
- * @param priority of type hard_timer_priority_t
+ * @param priority of type uhwt_priority_t
  * 
  * @note function can only run up to priority 'ESP_INTR_FLAG_LEVEL3' since functions are in c
  * 
  * @return priority flag for 'intr_alloc_flags' when calling 'timer_isr_callback_add'
  */
-int setPriority(hard_timer_priority_t priority) {
+int setPriority(uhwt_priority_t priority) {
 	#ifdef PLATFORMIO
 		// use input priority for PlatformIO
 		int adjustment = priority / (UINT8_MAX / 3);
@@ -154,9 +154,9 @@ int setPriority(hard_timer_priority_t priority) {
  * 
  * @return pointer to timer selected
  */
-timer_ptr_t getTimer(hard_timer_enum_t timer) {
+timer_ptr_t getTimer(uhwt_timer_t timer) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return NULL;
 	}
 	return &timers[timer];
@@ -167,13 +167,13 @@ timer_ptr_t getTimer(hard_timer_enum_t timer) {
  * 
  * @return available timer
  */
-hard_timer_enum_t getNextTimer(void) {
-	for (uint8_t i = 0; i < HARD_TIMER_COUNT; i++) {
+uhwt_timer_t getNextTimer(void) {
+	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
 		if (!hardTimerStarted(i) && !hardTimerClaimed(i)) {
-			return (hard_timer_enum_t)i;
+			return (uhwt_timer_t)i;
 		}
 	}
-	return HARD_TIMER_INVALID;
+	return UHWT_TIMER_INVALID;
 }
 
 /**
@@ -182,9 +182,9 @@ hard_timer_enum_t getNextTimer(void) {
  * @param timer timer to set
  * @param state whether or not timer is claimed
  */
-void setTimerClaimed(hard_timer_enum_t timer, bool state) {
+void setTimerClaimed(uhwt_timer_t timer, bool state) {
 
-	if (timer == HARD_TIMER_INVALID) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return;
 	}
 	if (state) {
@@ -195,15 +195,15 @@ void setTimerClaimed(hard_timer_enum_t timer, bool state) {
 	}
 }
 
-hard_timer_enum_t claimTimer(hard_timer_claim_s *priority) {
-	hard_timer_enum_t timer = getNextTimer();
-	if (timer != HARD_TIMER_INVALID) {
+uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
+	uhwt_timer_t timer = getNextTimer();
+	if (timer != UHWT_TIMER_INVALID) {
 		setTimerClaimed(timer, true);
 	}
 	return timer;
 }
 
-bool unclaimTimer(hard_timer_enum_t timer) {
+bool unclaimTimer(uhwt_timer_t timer) {
 
 	if (hardTimerClaimed(timer)) {
 		setTimerClaimed(timer, false);
@@ -212,8 +212,8 @@ bool unclaimTimer(hard_timer_enum_t timer) {
 	return false;
 }
 
-bool hardTimerClaimed(hard_timer_enum_t timer) {
-	if (timer == HARD_TIMER_INVALID) {
+bool hardTimerClaimed(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID) {
 		return false;
 	}
 	return !!(claimed & (1 << timer));
@@ -231,9 +231,9 @@ bool hardTimerClaimed(hard_timer_enum_t timer) {
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t *timer, prescalar_t *scalar, timertick_t *timerTicks) {
+uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_t *scalar, timertick_t *timerTicks) {
 
-	hard_timer_status_t status = HARD_TIMER_OK;
+	uhwt_status_t status = HARD_TIMER_OK;
 
 	// freq doesn't divide evenly into APB_CLK
 	if (APB_CLK_FREQ % *freq != 0) {
@@ -241,7 +241,7 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 	}
 
 	// scalar * timerTicks = APB_CLK / freq
-	hard_timer_freq_t target = APB_CLK_FREQ / *freq;
+	uhwt_freq_t target = APB_CLK_FREQ / *freq;
 
 	if (target <= SCALAR_MAX) {
 		// scalar within max value
@@ -261,18 +261,18 @@ hard_timer_status_t getHardTimerStats(hard_timer_freq_t *freq, hard_timer_enum_t
 
 	*freq = APB_CLK_FREQ / (*scalar * *timerTicks);
 
-	if ((!hardTimerClaimed(*timer) && hardTimerStarted(*timer)) || *timer == HARD_TIMER_INVALID) {
+	if ((!hardTimerClaimed(*timer) && hardTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
 		*timer = getNextTimer();
 	}
 
-	if (*timer == HARD_TIMER_INVALID) {
+	if (*timer == UHWT_TIMER_INVALID) {
 		return HARD_TIMER_FAIL;
 	}
 
 	return status;
 }
 
-bool hardTimerStarted(hard_timer_enum_t timer) {
+bool hardTimerStarted(uhwt_timer_t timer) {
 
 	timer_ptr_t timerPtr = getTimer(timer);
 
@@ -293,7 +293,7 @@ bool hardTimerStarted(hard_timer_enum_t timer) {
 	return false;
 }
 
-bool cancelHardTimer(hard_timer_enum_t timer) {
+bool cancelHardTimer(uhwt_timer_t timer) {
 	
 	if (hardTimerStarted(timer)) {
 
@@ -325,12 +325,12 @@ bool cancelHardTimer(hard_timer_enum_t timer) {
 	return false;
 }
 
-bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_function_ptr_t function, void* params, hard_timer_priority_t priority) {
+bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
 	
 	if (function == NULL || freq == NULL || timer == NULL) {
 		return false;
 	}
-	if (*freq == (hard_timer_freq_t)0 || *freq > HARD_TIMER_FREQ_MAX) {
+	if (*freq == (uhwt_freq_t)0 || *freq > UHWT_TIMER_FREQ_MAX) {
 		return false;
 	}
 
@@ -374,7 +374,7 @@ bool setHardTimer(hard_timer_enum_t *timer, hard_timer_freq_t *freq, hard_timer_
 		#elif ESP_IDF_VERSION_MAJOR == 5
 
 			uint64_t count = 1;
-			hard_timer_freq_t tempFreq = *freq;
+			uhwt_freq_t tempFreq = *freq;
 
 			// adjusts frequency to be above min
 			while (tempFreq < HARD_TIMER_FREQ_MIN) {

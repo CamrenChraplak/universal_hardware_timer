@@ -18,9 +18,7 @@
 
 #include "hardware_timer_test_priv.h"
 
-void delaySeconds(uint8_t seconds) __attribute__((weak));
-
-#if defined(ARDUINO) && !defined(OVERRIDE_ARDUINO_TIMER)
+#if defined(ARDUINO) && !(defined(UHWT_OVERRIDE_ARDUINO_TIMER) && (UHWT_SUPPORT_AVR))
 
 #include <Arduino.h>
 
@@ -30,7 +28,7 @@ void delaySeconds(uint8_t seconds) {
 
 #else
 
-#if HARDWARE_TIMER_SUPPORT_AVR
+#if UHWT_SUPPORT_AVR
 	#include "../avr/hardware_timer_avr.h"
 #endif
 
@@ -44,17 +42,17 @@ void timerDelayCounter(void *params) {
 }
 
 void delaySeconds(uint8_t seconds) {
-	hard_timer_enum_t timer = HARD_TIMER_INVALID;
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
 	volatile uint8_t delayCount = 0U;
 
-	hard_timer_freq_t freq =
+	uhwt_freq_t freq =
 	#ifdef FREQ_MIN_8_COUNTER
 		FREQ_MIN_8_COUNTER;
 	#else
 		1;
 	#endif
 
-	if (!setHardTimer(&timer, &freq, &timerDelayCounter, (void*)&delayCount, HARD_TIMER_PRIORITY_DEFAULT)) {
+	if (!setHardTimer(&timer, &freq, &timerDelayCounter, (void*)&delayCount, UHWT_PRIORITY_DEFAULT)) {
 		cancelHardTimer(timer);
 		return;
 	}
