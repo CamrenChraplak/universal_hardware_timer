@@ -38,9 +38,6 @@
 #define TIMER_COUNT_ZERO 0U // value for setting timer tick count to 0
 #define SCALAR_MAX UINT16_MAX // max value for timer scalar
 
-typedef uint16_t prescalar_t; // pre scalar type
-typedef uint64_t timertick_t; // timer tick type
-
 #if ESP_IDF_VERSION_MAJOR == 4
 
 #include <driver/timer.h>
@@ -119,6 +116,25 @@ typedef gptimer_handle_t** timer_ptr_t;
 
 #endif
 
+/****************************
+ * Platform Functions
+****************************/
+
+uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	return APB_CLK_FREQ / (scalar * ticks);
+}
+
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	if (APB_CLK_FREQ % (scalar * ticks) != 0) {
+		return false;
+	}
+	return true;
+}
+
+/****************************
+ * Timer Functions
+****************************/
+
 /**
  * Scales input priority
  * 
@@ -161,20 +177,6 @@ timer_ptr_t getTimer(uhwt_timer_t timer) {
 }
 
 /**
- * Gets next unstarted and unclaimed timer
- * 
- * @return available timer
- */
-uhwt_timer_t getNextTimer(void) {
-	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (!uhwtTimerStarted(i) && !uhwtTimerClaimed(i)) {
-			return (uhwt_timer_t)i;
-		}
-	}
-	return UHWT_TIMER_INVALID;
-}
-
-/**
  * Gets hard timer stats for target frequency
  * 
  * @param freq pointer to desired frequency in Hz
@@ -186,7 +188,7 @@ uhwt_timer_t getNextTimer(void) {
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_t *scalar, timertick_t *timerTicks) {
+uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
 
 	uhwt_status_t status = HARD_TIMER_OK;
 
@@ -200,13 +202,13 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 
 	if (target <= SCALAR_MAX) {
 		// scalar within max value
-		*scalar = (prescalar_t)target;
+		*scalar = (uhwt_prescalar_t)target;
 		*timerTicks = 1;
 	}
 	else {
 		// scalar not within max value
 		*scalar = 1;
-		*timerTicks = (timertick_t)target;
+		*timerTicks = (uhwt_timertick_t)target;
 
 		while (*timerTicks % 2 == 0 && *scalar * 2 <= SCALAR_MAX) {
 			*timerTicks /= 2;
@@ -214,10 +216,10 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 		}
 	}
 
-	*freq = APB_CLK_FREQ / (*scalar * *timerTicks);
+	*freq = uhwtCalcFreq(*scalar, *timerTicks);
 
 	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
-		*timer = getNextTimer();
+		*timer = uwhtGetNextTimer();
 	}
 
 	if (*timer == UHWT_TIMER_INVALID) {
@@ -270,8 +272,8 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 		return false;
 	}
 
-	prescalar_t scalar;
-	timertick_t timerTicks;
+	uhwt_prescalar_t scalar;
+	uhwt_timertick_t timerTicks;
 
 	if (getHardTimerStats(freq, timer, &scalar, &timerTicks) == HARD_TIMER_FAIL) {
 		return false;

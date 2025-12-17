@@ -113,13 +113,24 @@ bool uhwtStartTimer(uhwt_timer_t timer);
 bool uhwtStopTimer(uhwt_timer_t timer);
 
 /**
- * Gets timer according to claim arguments
+ * Gets next timer according to claim arguments
  * 
  * @param claimArgs arguments for getting timer
  * 
- * @return timer claimed
+ * @return timer retrieved
  */
-uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs);
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs);
+
+/**
+ * Tests if timer presets equal the target frequency
+ * 
+ * @param targetFreq frequency to test
+ * @param scalar pre scalar for timer
+ * @param ticks timer ticks per cycle
+ * 
+ * @return if presets set equal to timer
+ */
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
 
 #ifdef __cplusplus
 }

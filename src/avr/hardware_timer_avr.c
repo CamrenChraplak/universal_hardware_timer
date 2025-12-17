@@ -47,10 +47,8 @@ typedef enum {
 		SCALAR_1024, // timer prescalar of 1024
 	#endif
 } prescalar_enum_t; // pre scalar type
-typedef uint16_t prescalar_t; // scalar type
-typedef uint16_t timertick_t; // timer tick type
 
-const prescalar_t scalarMask[] PROGMEM = {
+const uhwt_prescalar_t scalarMask[] PROGMEM = {
 	#ifdef SCALAR_1_ENABLE
 		1, // SCALAR_1
 	#endif
@@ -116,7 +114,7 @@ const prescalar_t scalarMask[] PROGMEM = {
 	#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT
 #endif
 
-#define SCALAR_MASK_SIZE (sizeof(scalarMask) / sizeof(prescalar_t)) // size of scalarMask
+#define SCALAR_MASK_SIZE (sizeof(scalarMask) / sizeof(uhwt_prescalar_t)) // size of scalarMask
 
 /****************************
  * Timer 0
@@ -253,6 +251,40 @@ ISR(TIMER2_COMPA_vect) {
 #endif
 
 /****************************
+ * Platform Functions
+****************************/
+
+uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	return F_CPU / ((uhwt_freq_t)getMask(scalar) * (ticks + 1));
+}
+
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	if (F_CPU % ((uhwt_freq_t)getMask(scalar) * (ticks + 1)) != 0) {
+		return false;
+	}
+	return true;
+}
+
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
+	uhwt_timer_t timer = TIMER_1_ALIAS;
+
+	// checks priorities
+	if (claimArgs.slowestTimer) {
+		if (uhwtClaimTimer(&timer)) {
+			return timer;
+		}
+	}
+	timer = TIMER_2_ALIAS;
+	if (claimArgs.mostAccurateTimer) {
+		if (uhwtClaimTimer(&timer)) {
+			return timer;
+		}
+	}
+
+	return UHWT_TIMER_INVALID;
+}
+
+/****************************
  * Timer Functions
 ****************************/
 
@@ -275,40 +307,8 @@ uint16_t getMask(prescalar_enum_t scalar) {
  * 
  * @return calculated timer ticks
  */
-timertick_t calculateTicks(prescalar_enum_t scalar, uhwt_freq_t freq) {
+uhwt_timertick_t calculateTicks(prescalar_enum_t scalar, uhwt_freq_t freq) {
 	return (F_CPU / (getMask(scalar) * freq)) - 1;
-}
-
-/**
- * Calculates timer frequency from scalar value and timer tick value
- * 
- * @param scalar scalar enum
- * @param timerTicks timer ticks to count for
- * 
- * @return calculated frequency
- */
-uhwt_freq_t calculateFreq(prescalar_enum_t scalar, timertick_t timerTicks) {
-	return F_CPU / ((uhwt_freq_t)getMask(scalar) * (timerTicks + 1));
-}
-
-/**
- * Tests if given scalar and timer ticks equal a given frequency
- * 
- * @param freq target frequency
- * @param scalar scalar value
- * @param ticks timer tick count
- * 
- * @return if parameters generate frequency
- */
-bool sameFreq(uhwt_freq_t freq, prescalar_enum_t scalar, timertick_t ticks) {
-
-	if (F_CPU % ((uhwt_freq_t)getMask(scalar) * (ticks + 1)) != 0) {
-		return false;
-	}
-	if (calculateFreq(scalar, ticks) != freq) {
-		return false;
-	}
-	return true;
 }
 
 /**
@@ -319,7 +319,7 @@ bool sameFreq(uhwt_freq_t freq, prescalar_enum_t scalar, timertick_t ticks) {
  * @param scalar pointer to scalar value
  * @param timerTicks pointer to timer tick count
  */
-void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
+void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, uhwt_timertick_t *timerTicks) {
 
 	*scalar = SCALAR_1;
 	*timerTicks = 0;
@@ -334,7 +334,7 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, t
 		}
 
 		// ignore invalid ticks
-		if ((timertick_t)(F_CPU / (getMask(i) * *freq)) < 1) {
+		if ((uhwt_timertick_t)(F_CPU / (getMask(i) * *freq)) < 1) {
 			continue;
 		}
 		if (calculateTicks(i, *freq) > UINT16_MAX) {
@@ -343,43 +343,23 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, t
 		if (calculateTicks(i, *freq) > UINT8_MAX && timer != TIMER_1_ALIAS) {
 			continue;
 		}
-		timertick_t calcTicks = calculateTicks(i, *freq);
+		uhwt_timertick_t calcTicks = calculateTicks(i, *freq);
 
 		// frequency is exact value
-		if (sameFreq(*freq, i, calcTicks)) {
+		if (uhwtEqualFreq(*freq, i, calcTicks)) {
 			*scalar = i;
 			*timerTicks = calcTicks;
 			return;
 		}
 
 		// test if newly calculated frequency is closer
-		if (abs(*freq - closestFreq) > abs(*freq - calculateFreq(i, calcTicks))) {
+		if (abs(*freq - closestFreq) > abs(*freq - uhwtCalcFreq(i, calcTicks))) {
 			*scalar = (prescalar_enum_t)i;
 			*timerTicks = calcTicks;
-			closestFreq = calculateFreq(i, calcTicks);
+			closestFreq = uhwtCalcFreq(i, calcTicks);
 		}
 	}
 	*freq = closestFreq;
-}
-
-uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
-
-	uhwt_timer_t timer = TIMER_1_ALIAS;
-
-	// checks priorities
-	if (claimArgs.slowestTimer) {
-		if (uhwtClaimTimer(&timer)) {
-			return timer;
-		}
-	}
-	timer = TIMER_2_ALIAS;
-	if (claimArgs.mostAccurateTimer) {
-		if (uhwtClaimTimer(&timer)) {
-			return timer;
-		}
-	}
-
-	return UHWT_TIMER_INVALID;
 }
 
 /**
@@ -397,7 +377,7 @@ uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
 #define SET_FIRST_FREQ(origFreq, origTimer, newFreq, newTimer, newTicks, newScalar) \
 	(origTimer) = (newTimer); \
 	getStats(&(newFreq), (origTimer), &(newScalar), &(newTicks)); \
-	if (sameFreq((origFreq), (newScalar), (newTicks))) { \
+	if (uhwtEqualFreq((origFreq), (newScalar), (newTicks))) { \
 		return HARD_TIMER_OK; \
 	}
 
@@ -423,7 +403,7 @@ uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
 		(origTimer) = (newTimer); \
 		(origScalar) = (newScalar); \
 		(origTicks) = (newTicks); \
-		if (sameFreq((origFreq), (origScalar), (origTicks))) { \
+		if (uhwtEqualFreq((origFreq), (origScalar), (origTicks))) { \
 			(origFreq) = (newFreq); \
 			return HARD_TIMER_OK; \
 		} \
@@ -441,7 +421,7 @@ uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
+uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_enum_t *scalar, uhwt_timertick_t *timerTicks) {
 
 	// returns started timer early
 	if (uhwtTimerStarted(*timer) && uhwtTimerClaimed(*timer)) {
@@ -478,7 +458,7 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 		 */
 
 		prescalar_enum_t tempScalar = SCALAR_1;
-		timertick_t tempTicks = 0;
+		uhwt_timertick_t tempTicks = 0;
 		uhwt_freq_t tempFreq = *freq;
 
 		// gets timer 0
@@ -596,7 +576,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 	}
 
 	prescalar_enum_t scalar;
-	timertick_t timerTicks;
+	uhwt_timertick_t timerTicks;
 
 	if (getHardTimerStats(freq, timer, &scalar, &timerTicks) == HARD_TIMER_FAIL) {
 		return false;

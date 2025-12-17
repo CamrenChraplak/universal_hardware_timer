@@ -78,6 +78,8 @@ typedef struct {
 
 #if UHWT_SUPPORT_ESP32
 
+	#include <esp_system.h>
+
 	/****************************
 	 * Timer Config
 	 * 
@@ -86,6 +88,9 @@ typedef struct {
 
 	#define UHWT_TIMER_FREQ_MAX 200000 // max frequency user set timer can be
 	#define UHWT_TIMER_COUNT 4 // amount of hardware timers to use
+
+	typedef uint16_t uhwt_prescalar_t; // prescalar type
+	typedef uint64_t uhwt_timertick_t; // timer tick type
 
 #elif UHWT_SUPPORT_PICO
 
@@ -101,6 +106,12 @@ typedef struct {
 
 	#define UHWT_TIMER_FREQ_MAX 250000 // max frequency user set timer can be
 	#define UHWT_TIMER_COUNT 14 // amount of hardware timers to use
+
+	typedef enum {
+		SCALAR_MS, // timer prescalar for milli seconds
+		SCALAR_US, // timer prescalar micro seconds
+	} uhwt_prescalar_t; // prescalar type
+	typedef int64_t uhwt_timertick_t; // timer tick type
 
 #elif UHWT_SUPPORT_AVR
 
@@ -126,6 +137,9 @@ typedef struct {
 		#define UHWT_TIMER_COUNT 2 // amount of hardware timers to use
 	#endif
 
+	typedef uint16_t uhwt_prescalar_t; // prescalar type
+	typedef uint16_t uhwt_timertick_t; // timer tick type
+
 #else
 
 	/****************************
@@ -139,6 +153,9 @@ typedef struct {
 	#ifndef UHWT_TIMER_COUNT
 		#define UHWT_TIMER_COUNT 0 // amount of hardware timers to use
 	#endif
+
+	typedef uint8_t uhwt_prescalar_t; // prescalar type
+	typedef uint8_t uhwt_timertick_t; // timer tick type
 
 #endif
 
@@ -298,6 +315,43 @@ bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs);
  * @return if unclaim was successful
  */
 bool uhwtUnclaimTimer(uhwt_timer_t timer);
+
+/**
+ * Gets next available timer
+ * 
+ * @return timer retrieved
+ */
+uhwt_timer_t uwhtGetNextTimer();
+
+/**
+ * Gets next available timer
+ * 
+ * @param claimArgs claim arguments for selecting timer
+ * 
+ * @return timer retrieved
+ */
+uhwt_timer_t uwhtGetNextTimerStats(uhwt_claim_s claimArgs);
+
+/**
+ * Calculates timer frequency from given timer presets
+ * 
+ * @param scalar pre scalar for timer
+ * @param ticks timer ticks per cycle
+ * 
+ * @return calculated frequency
+ */
+uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
+
+/**
+ * Tests if timer presets equal the target frequency
+ * 
+ * @param targetFreq frequency to test
+ * @param scalar pre scalar for timer
+ * @param ticks timer ticks per cycle
+ * 
+ * @return if presets set equal to timer
+ */
+bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
 
 #ifdef __cplusplus
 }

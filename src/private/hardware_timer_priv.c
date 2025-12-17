@@ -238,7 +238,7 @@ bool uhwtTimerStarted(uhwt_timer_t timer) {
 bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs) {
 
 	if (*timer == UHWT_TIMER_INVALID) {
-		uhwt_timer_t statTimer = uhwtPlatformClaimTimerStats(claimArgs);
+		uhwt_timer_t statTimer = uwhtPlatformGetNextTimerStats(claimArgs);
 
 		if (statTimer != UHWT_TIMER_INVALID) {
 			*timer = statTimer;
@@ -262,12 +262,10 @@ bool uhwtClaimTimer(uhwt_timer_t *timer) {
 		}
 	}
 	else {
-		for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-			if (!uhwtTimerClaimed(i) && !uhwtTimerStarted(i)) {
-				*timer = i;
-				uhwtStats.uhwtClaimed |= (1 << (*timer));
-				return true;
-			}
+		*timer = uwhtGetNextTimer();
+		if (*timer != UHWT_TIMER_INVALID) {
+			uhwtStats.uhwtClaimed |= (1 << (*timer));
+			return true;
 		}
 	}
 	
@@ -298,7 +296,39 @@ bool uhwtStopTimer(uhwt_timer_t timer) {
 	return false;
 }
 
-uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) __attribute__((weak));
-uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
+uhwt_timer_t uwhtGetNextTimer() {
+	for (uhwt_timer_t i = 0; i < UHWT_TIMER_COUNT; i++) {
+		if (!uhwtTimerStarted(i) && !uhwtTimerClaimed(i)) {
+			return i;
+		}
+	}
 	return UHWT_TIMER_INVALID;
+}
+
+uhwt_timer_t uwhtGetNextTimerStats(uhwt_claim_s claimArgs) {
+
+	uhwt_timer_t timer = uwhtPlatformGetNextTimerStats(claimArgs);
+
+	if (timer == UHWT_TIMER_INVALID) {
+		return uwhtGetNextTimer();
+	}
+
+	return timer;
+}
+
+bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	if (uhwtCalcFreq(scalar, ticks) == targetFreq) {
+		return uhwtPlatformEqualFreq(targetFreq, scalar, ticks);
+	}
+	return false;
+}
+
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) __attribute__((weak));
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
+	return UHWT_TIMER_INVALID;
+}
+
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) __attribute__((weak));
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	return true;
 }
