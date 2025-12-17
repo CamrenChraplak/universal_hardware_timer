@@ -53,25 +53,12 @@ struct repeating_timer* getTimer(uhwt_timer_t timer) {
 ****************************/
 
 uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	if (scalar == SCALAR_MS) {
-		return PICO_SDK_TIMER_MAX / (ticks * THOUSAND);
-	}
-	else if (scalar == SCALAR_US) {
-		return PICO_SDK_TIMER_MAX / ticks;
-	}
-	return 0;
+	return PICO_SDK_TIMER_MAX / ticks;
 }
 
 bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	if (scalar == SCALAR_MS) {
-		if (PICO_SDK_TIMER_MAX % (ticks * THOUSAND) != 0) {
-			return false;
-		}
-	}
-	else if (scalar == SCALAR_US) {
-		if (PICO_SDK_TIMER_MAX % ticks != 0) {
-			return false;
-		}
+	if (PICO_SDK_TIMER_MAX % ticks != 0) {
+		return false;
 	}
 	return true;
 }
@@ -104,14 +91,7 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_pre
 	//target in us
 	uhwt_freq_t targetUS = PICO_SDK_TIMER_MAX / *freq;
 
-	if (targetUS % THOUSAND == 0 && status == HARD_TIMER_OK) {
-		*scalar = SCALAR_MS;
-		*timerTicks = targetUS / THOUSAND;
-	}
-	else {
-		*scalar = SCALAR_US;
-		*timerTicks = targetUS;
-	}
+	*timerTicks = targetUS;
 
 	*freq = uhwtCalcFreq(*scalar, *timerTicks);
 
@@ -161,17 +141,9 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 
 		setHardTimerFunction(*timer, function, params);
 
-		if (scalar == SCALAR_MS) {
-			if (add_repeating_timer_ms(-timerTicks, getHardTimerCallback(*timer), NULL, timerPtr)) {
-				uhwtStartTimer(*timer);
-				return true;
-			}
-		}
-		else if (scalar == SCALAR_US) {
-			if (add_repeating_timer_us(-timerTicks, getHardTimerCallback(*timer), NULL, timerPtr)) {
-				uhwtStartTimer(*timer);
-				return true;
-			}
+		if (add_repeating_timer_us(-timerTicks, getHardTimerCallback(*timer), NULL, timerPtr)) {
+			uhwtStartTimer(*timer);
+			return true;
 		}
 	}
 

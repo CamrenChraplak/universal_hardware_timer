@@ -107,10 +107,7 @@ typedef struct {
 	#define UHWT_TIMER_FREQ_MAX 250000 // max frequency user set timer can be
 	#define UHWT_TIMER_COUNT 14 // amount of hardware timers to use
 
-	typedef enum {
-		SCALAR_MS, // timer prescalar for milli seconds
-		SCALAR_US, // timer prescalar micro seconds
-	} uhwt_prescalar_t; // prescalar type
+	typedef uint8_t uhwt_prescalar_t; // prescalar type
 	typedef int64_t uhwt_timertick_t; // timer tick type
 
 #elif UHWT_SUPPORT_AVR
