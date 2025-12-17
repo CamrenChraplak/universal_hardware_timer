@@ -136,7 +136,7 @@ void HARD_TIMER_RAM_ATTR(testTimingFunctionParams) testTimingFunctionParams(void
  */
 void resetTimers() {
 	for (int i = 0; i < UHWT_TIMER_COUNT; i++) {
-		unclaimTimer((uhwt_timer_t)i);
+		uhwtUnclaimTimer((uhwt_timer_t)i);
 		cancelHardTimer((uhwt_timer_t)i);
 	}
 }
@@ -148,7 +148,7 @@ void resetTimers() {
  * @param start whether timer should or shouldn't be started
  */
 void testGetStartState(uhwt_timer_t timer, bool start) {
-	if (hardTimerStarted(timer) != start) {
+	if (uhwtTimerStarted(timer) != start) {
 		TEST_FAIL_MESSAGE(invalidStartFail);
 	}
 }
@@ -207,46 +207,49 @@ void testClaims(void) {
 	resetTimers();
 
 	uhwt_timer_t timer = UHWT_TIMER_INVALID;
+	uhwt_timer_t tempTimer = UHWT_TIMER_INVALID;
 	uhwt_freq_t freq = TEST_CASES_FREQ;
 
 	// unclaim
-	if (unclaimTimer(timer)) {
+	if (uhwtUnclaimTimer(timer)) {
 		TEST_FAIL_MESSAGE(unclaimInvalidFail);
 	}
-	if (unclaimTimer(UHWT_TIMER0)) {
+	if (uhwtUnclaimTimer(UHWT_TIMER0)) {
 		TEST_FAIL_MESSAGE(unclaimNotClaimedFail);
 	}
 
 	// none claimed
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (hardTimerClaimed(i)) {
+		if (uhwtTimerClaimed(i)) {
 			TEST_FAIL_MESSAGE(notClaimedFail);
 		}
 	}
 
 	// claim
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (claimTimer(NULL) == UHWT_TIMER_INVALID) {
+		timer = UHWT_TIMER_INVALID;
+		if (!uhwtClaimTimer(&timer)) {
 			TEST_FAIL_MESSAGE(claimLoopFail);
 		}
 	}
-	if (claimTimer(NULL) != UHWT_TIMER_INVALID) {
+	timer = UHWT_TIMER_INVALID;
+	if (uhwtClaimTimer(&timer)) {
 		TEST_FAIL_MESSAGE(allClaimedFail);
 	}
 
 	// all claimed
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (!hardTimerClaimed(i)) {
+		if (!uhwtTimerClaimed(i)) {
 			TEST_FAIL_MESSAGE(isClaimedFail);
 		}
 	}
 
 	// remove all claims and test unclaimed
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (!unclaimTimer(i)) {
+		if (!uhwtUnclaimTimer(i)) {
 			TEST_FAIL_MESSAGE(unclaimLoopFail);
 		}
-		if (hardTimerClaimed(i)) {
+		if (uhwtTimerClaimed(i)) {
 			TEST_FAIL_MESSAGE(didntUnclaimFail);
 		}
 	}
@@ -256,18 +259,19 @@ void testClaims(void) {
 		TEST_FAIL_MESSAGE(noStartFail);
 	}
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT - 1; i++) {
-		if (claimTimer(NULL) == UHWT_TIMER_INVALID) {
+		tempTimer = UHWT_TIMER_INVALID;
+		if (!uhwtClaimTimer(&tempTimer)) {
 			TEST_FAIL_MESSAGE(claimLoopFail);
 		}
 	}
-	if (claimTimer(NULL) != UHWT_TIMER_INVALID) {
+	if (uhwtClaimTimer(&timer)) {
 		TEST_FAIL_MESSAGE(claimedActiveFail);
 	}
 
 	// remove all claims
 	bool claimed = false;
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (!unclaimTimer(i)) {
+		if (!uhwtUnclaimTimer(i)) {
 			if (!claimed) {
 				claimed = true;
 			}
@@ -280,7 +284,6 @@ void testClaims(void) {
 	if (!cancelHardTimer(timer)) {
 		TEST_FAIL_MESSAGE(cancelFail);
 	}
-	timer = UHWT_TIMER_INVALID;
 	TEST_PASS();
 }
 
@@ -326,7 +329,7 @@ void testStart(void) {
 		if (!setHardTimer(&loopTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 			TEST_FAIL_MESSAGE(setLoopFail);
 		}
-		if (!hardTimerStarted(loopTimer)) {
+		if (!uhwtTimerStarted(loopTimer)) {
 			TEST_FAIL_MESSAGE(startedLoopFail);
 		}
 	}
@@ -337,7 +340,7 @@ void testStart(void) {
 		if (!cancelHardTimer((uhwt_timer_t)i)) {
 			TEST_FAIL_MESSAGE(cancelLoopFail);
 		}
-		if (hardTimerStarted((uhwt_timer_t)i)) {
+		if (uhwtTimerStarted((uhwt_timer_t)i)) {
 			TEST_FAIL_MESSAGE(didntStopFail);
 		}
 	}
@@ -348,13 +351,13 @@ void testStart(void) {
 		TEST_FAIL_MESSAGE(freq0Fail);
 	}
 	TIMER_NOT_INVALID(timer);
-	if (hardTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer)) {
 		TEST_FAIL_MESSAGE(isStartFail);
 	}
 	if (cancelHardTimer(timer)) {
 		TEST_FAIL_MESSAGE(cancelFail);
 	}
-	if (hardTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer)) {
 		TEST_FAIL_MESSAGE(notStartFail);
 	}
 	timer = UHWT_TIMER_INVALID;
@@ -365,13 +368,13 @@ void testStart(void) {
 		TEST_FAIL_MESSAGE(freqMaxFail);
 	}
 	TIMER_NOT_INVALID(timer);
-	if (hardTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer)) {
 		TEST_FAIL_MESSAGE(isStartFail);
 	}
 	if (cancelHardTimer(timer)) {
 		TEST_FAIL_MESSAGE(cancelFail);
 	}
-	if (hardTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer)) {
 		TEST_FAIL_MESSAGE(notStartFail);
 	}
 	timer = UHWT_TIMER_INVALID;
@@ -391,7 +394,7 @@ void testTimerPriority() {
 	uhwt_freq_t freq = TEST_CASES_FREQ;
 
 	// test timer claimed and unstarted
-	timer = claimTimer(NULL);
+	uhwtClaimTimer(&timer);
 	secondTimer = timer;
 	if (!setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(pNotStartedClaimedFail);
@@ -412,7 +415,7 @@ void testTimerPriority() {
 	}
 
 	// test timer unclaimed and started
-	unclaimTimer(secondTimer);
+	uhwtUnclaimTimer(secondTimer);
 
 	if (!setHardTimer(&secondTimer, &freq, testTimingFunction, NULL, UHWT_PRIORITY_DEFAULT)) {
 		TEST_FAIL_MESSAGE(pStartedUnclaimedFail);

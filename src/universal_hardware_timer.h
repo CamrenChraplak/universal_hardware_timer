@@ -203,33 +203,6 @@ extern "C" {
 #endif
 
 /**
- * Claims a timer based on functional priorities
- * 
- * @param priority priority of timer to get
- * 
- * @return timer claimed
- */
-uhwt_timer_t claimTimer(uhwt_claim_s *priority);
-
-/**
- * Releases claim on a timer
- * 
- * @param timer timer to release
- * 
- * @return if unclaim was successful
- */
-bool unclaimTimer(uhwt_timer_t timer);
-
-/**
- * Tests if timer is claimed already or not
- * 
- * @param timer timer to check
- * 
- * @return if timer is claimed or not
- */
-bool hardTimerClaimed(uhwt_timer_t timer);
-
-/**
  * Stops hardware timer from executing
  * 
  * @param timer timer to stop
@@ -268,15 +241,6 @@ bool cancelHardTimer(uhwt_timer_t timer);
 bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params,
 		uhwt_priority_t priority);
-
-/**
- * Gets if selected timer was started
- * 
- * @param timer timer to check
- * 
- * @return if timer was started
- */
-bool hardTimerStarted(uhwt_timer_t timer);
 
 /**
  * Sets function to execute for timer ISR

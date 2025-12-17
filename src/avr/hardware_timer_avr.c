@@ -362,24 +362,6 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, t
 	*freq = closestFreq;
 }
 
-bool hardTimerClaimed(uhwt_timer_t timer) {
-	return uhwtTimerClaimed(timer);
-}
-
-uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
-
-	uhwt_timer_t timer = UHWT_TIMER_INVALID;
-
-	if (priority != NULL) {
-		uhwtClaimTimerStats(&timer, *priority);
-	}
-	else {
-		uhwtClaimTimer(&timer);
-	}
-
-	return timer;
-}
-
 uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
 
 	uhwt_timer_t timer = TIMER_1_ALIAS;
@@ -398,10 +380,6 @@ uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
 	}
 
 	return UHWT_TIMER_INVALID;
-}
-
-bool unclaimTimer(uhwt_timer_t timer) {
-	return uhwtUnclaimTimer(timer);
 }
 
 /**
@@ -542,10 +520,6 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 
 		return HARD_TIMER_SLIGHTLY_OFF;
 	}
-}
-
-bool hardTimerStarted(uhwt_timer_t timer) {
-	return uhwtTimerStarted(timer);
 }
 
 /**

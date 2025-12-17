@@ -66,27 +66,6 @@ uhwt_timer_t getNextTimer(void) {
 	return UHWT_TIMER_INVALID;
 }
 
-uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
-	uhwt_timer_t timer = UHWT_TIMER_INVALID;
-
-	if (priority != NULL) {
-		uhwtClaimTimerStats(&timer, *priority);
-	}
-	else {
-		uhwtClaimTimer(&timer);
-	}
-
-	return timer;
-}
-
-bool unclaimTimer(uhwt_timer_t timer) {
-	return uhwtUnclaimTimer(timer);
-}
-
-bool hardTimerClaimed(uhwt_timer_t timer) {
-	return uhwtTimerClaimed(timer);
-}
-
 #define PICO_SDK_TIMER_MAX 1000000
 
 /**
@@ -138,10 +117,6 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 	}
 
 	return status;
-}
-
-bool hardTimerStarted(uhwt_timer_t timer) {
-	return uhwtTimerStarted(timer);
 }
 
 bool cancelHardTimer(uhwt_timer_t timer) {
