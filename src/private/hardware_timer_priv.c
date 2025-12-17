@@ -201,3 +201,104 @@ uhwt_platform_callback_ptr_t getHardTimerCallback(uhwt_timer_t timer) {
 		return NULL;
 	#endif
 }
+
+#if UHWT_TIMER_COUNT <= 8
+	typedef uint8_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 16
+	typedef uint16_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 32
+	typedef uint32_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 64
+	typedef uint64_t uhwt_stat_t; // type for timer stats
+#endif
+
+// stores status of hardware timers
+typedef struct {
+	uhwt_stat_t uhwtClaimed: UHWT_TIMER_COUNT; // whether timers were claimed or not
+	uhwt_stat_t uhwtStarted: UHWT_TIMER_COUNT; // whether timers were started or not
+} uhwt_stat_s;
+
+// stores status of all hardware timers
+uhwt_stat_s uhwtStats;
+
+bool uhwtTimerClaimed(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID) {
+		return false;
+	}
+	return !!(uhwtStats.uhwtClaimed & (((uhwt_stat_t)1) << (timer)));
+}
+
+bool uhwtTimerStarted(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID) {
+		return false;
+	}
+	return !!(uhwtStats.uhwtStarted & (((uhwt_stat_t)1) << (timer)));
+}
+
+bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs) {
+
+	if (*timer == UHWT_TIMER_INVALID) {
+		uhwt_timer_t statTimer = uhwtPlatformClaimTimerStats(claimArgs);
+
+		if (statTimer != UHWT_TIMER_INVALID) {
+			*timer = statTimer;
+			return true;
+		}
+	}
+
+	return uhwtClaimTimer(timer);
+}
+
+bool uhwtClaimTimer(uhwt_timer_t *timer) {
+
+	if (timer == NULL) {
+		return false;
+	}
+
+	if (*timer != UHWT_TIMER_INVALID) {
+		if (!uhwtTimerClaimed(*timer) && !uhwtTimerStarted(*timer)) {
+			uhwtStats.uhwtClaimed |= (1 << (*timer));
+			return true;
+		}
+	}
+	else {
+		for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
+			if (!uhwtTimerClaimed(i) && !uhwtTimerStarted(i)) {
+				*timer = i;
+				uhwtStats.uhwtClaimed |= (1 << (*timer));
+				return true;
+			}
+		}
+	}
+	
+	return false;
+}
+
+bool uhwtUnclaimTimer(uhwt_timer_t timer) {
+	if (uhwtTimerClaimed(timer)) {
+		uhwtStats.uhwtClaimed &= (~(1 << (timer)));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtStartTimer(uhwt_timer_t timer) {
+	if (!uhwtTimerStarted(timer)) {
+		uhwtStats.uhwtStarted |= (1 << (timer));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtStopTimer(uhwt_timer_t timer) {
+	if (uhwtTimerStarted(timer)) {
+		uhwtStats.uhwtStarted &= (~(1 << (timer)));
+		return true;
+	}
+	return false;
+}
+
+uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) __attribute__((weak));
+uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
+	return UHWT_TIMER_INVALID;
+}

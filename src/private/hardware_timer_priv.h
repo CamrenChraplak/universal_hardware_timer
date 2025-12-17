@@ -94,6 +94,33 @@ extern "C" {
  */
 uhwt_platform_callback_ptr_t getHardTimerCallback(uhwt_timer_t timer);
 
+/**
+ * Sets timer as started
+ * 
+ * @param timer timer to start
+ * 
+ * @return if start was successful
+ */
+bool uhwtStartTimer(uhwt_timer_t timer);
+
+/**
+ * Sets timer as stopped
+ * 
+ * @param timer timer to stop
+ * 
+ * @return if stop was successful
+ */
+bool uhwtStopTimer(uhwt_timer_t timer);
+
+/**
+ * Gets timer according to claim arguments
+ * 
+ * @param claimArgs arguments for getting timer
+ * 
+ * @return timer claimed
+ */
+uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs);
+
 #ifdef __cplusplus
 }
 #endif

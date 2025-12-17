@@ -38,15 +38,6 @@ typedef int64_t timertick_t; // timer tick type
 // hardware timers
 struct repeating_timer timers[UHWT_TIMER_COUNT];
 
-#if UHWT_TIMER_COUNT <= 8
-	typedef uint8_t storage_t; // storage type for timer states
-#elif UHWT_TIMER_COUNT <= 16
-	typedef uint16_t storage_t; // storage type for timer states
-#endif
-
-storage_t timersStarted = 0U; // stores timer started state
-storage_t timersClaimed = 0U; // stores timer claimed state
-
 /**
  * Gets timer based on desired timer
  * 
@@ -62,51 +53,13 @@ struct repeating_timer* getTimer(uhwt_timer_t timer) {
 }
 
 /**
- * Sets timer started state
- * 
- * @param timer timer to set
- * @param state whether or not timer is started
- */
-void setTimerStarted(uhwt_timer_t timer, bool state) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return;
-	}
-	if (state) {
-		timersStarted |= (((storage_t)1) << timer);
-	}
-	else {
-		timersStarted &= (~(((storage_t)1) << timer));
-	}
-}
-
-/**
- * Sets timer claimed state
- * 
- * @param timer timer to set
- * @param state whether or not timer is claimed
- */
-void setTimerClaimed(uhwt_timer_t timer, bool state) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return;
-	}
-	if (state) {
-		timersClaimed |= (((storage_t)1) << (timer));
-	}
-	else {
-		timersClaimed &= (~(((storage_t)1) << (timer)));
-	}
-}
-
-/**
  * Gets next unstarted and unclaimed timer
  * 
  * @return available timer
  */
 uhwt_timer_t getNextTimer(void) {
 	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (!hardTimerStarted(i) && !hardTimerClaimed(i)) {
+		if (!uhwtTimerStarted(i) && !uhwtTimerClaimed(i)) {
 			return (uhwt_timer_t)i;
 		}
 	}
@@ -114,28 +67,24 @@ uhwt_timer_t getNextTimer(void) {
 }
 
 uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
 
-	uhwt_timer_t timer = getNextTimer();
-	if (timer != UHWT_TIMER_INVALID) {
-		setTimerClaimed(timer, true);
+	if (priority != NULL) {
+		uhwtClaimTimerStats(&timer, *priority);
 	}
+	else {
+		uhwtClaimTimer(&timer);
+	}
+
 	return timer;
 }
 
 bool unclaimTimer(uhwt_timer_t timer) {
-	if (hardTimerClaimed(timer)) {
-		setTimerClaimed(timer, false);
-		return true;
-	}
-	return false;
+	return uhwtUnclaimTimer(timer);
 }
 
 bool hardTimerClaimed(uhwt_timer_t timer) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return false;
-	}
-	return !!(timersClaimed & (((storage_t)1) << (timer)));
+	return uhwtTimerClaimed(timer);
 }
 
 #define PICO_SDK_TIMER_MAX 1000000
@@ -180,7 +129,7 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 		*freq = PICO_SDK_TIMER_MAX / *timerTicks;
 	}
 
-	if ((!hardTimerClaimed(*timer) && hardTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
+	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
 		*timer = getNextTimer();
 	}
 	
@@ -192,21 +141,17 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 }
 
 bool hardTimerStarted(uhwt_timer_t timer) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return false;
-	}
-	return !!((((storage_t)1) << timer) & timersStarted);
+	return uhwtTimerStarted(timer);
 }
 
 bool cancelHardTimer(uhwt_timer_t timer) {
 
-	if (hardTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer)) {
 		struct repeating_timer* timerPtr = getTimer(timer);
 		if (!cancel_repeating_timer(timerPtr)) {
 			return false;
 		}
-		setTimerStarted(timer, false);
+		uhwtStopTimer(timer);
 		return true;
 	}
 
@@ -229,20 +174,20 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 		return false;
 	}
 
-	if (!hardTimerStarted(*timer)) {
+	if (!uhwtTimerStarted(*timer)) {
 		struct repeating_timer* timerPtr = getTimer(*timer);
 
 		setHardTimerFunction(*timer, function, params);
 
 		if (scalar == SCALAR_MS) {
 			if (add_repeating_timer_ms(-timerTicks, getHardTimerCallback(*timer), NULL, timerPtr)) {
-				setTimerStarted(*timer, true);
+				uhwtStartTimer(*timer);
 				return true;
 			}
 		}
 		else if (scalar == SCALAR_US) {
 			if (add_repeating_timer_us(-timerTicks, getHardTimerCallback(*timer), NULL, timerPtr)) {
-				setTimerStarted(*timer, true);
+				uhwtStartTimer(*timer);
 				return true;
 			}
 		}

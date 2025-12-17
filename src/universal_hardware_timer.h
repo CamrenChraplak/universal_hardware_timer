@@ -289,6 +289,52 @@ bool hardTimerStarted(uhwt_timer_t timer);
 bool setHardTimerFunction(uhwt_timer_t timer,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
+/**
+ * Tests if timer is claimed
+ * 
+ * @param timer timer to test
+ * 
+ * @return claim status
+ */
+bool uhwtTimerClaimed(uhwt_timer_t timer);
+
+/**
+ * Tests if timer is started
+ * 
+ * @param timer timer to test
+ * 
+ * @return start status
+ */
+bool uhwtTimerStarted(uhwt_timer_t timer);
+
+/**
+ * Claims next available timer
+ * 
+ * @param timer pointer to timer to set
+ * 
+ * @return if successful
+ */
+bool uhwtClaimTimer(uhwt_timer_t *timer);
+
+/**
+ * Claims next available timer
+ * 
+ * @param timer pointer to timer to set
+ * @param claimArgs claim arguments for selecting timer
+ * 
+ * @return if successful
+ */
+bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs);
+
+/**
+ * Sets timer as unclaimed
+ * 
+ * @param timer timer to unclaim
+ * 
+ * @return if unclaim was successful
+ */
+bool uhwtUnclaimTimer(uhwt_timer_t timer);
+
 #ifdef __cplusplus
 }
 #endif

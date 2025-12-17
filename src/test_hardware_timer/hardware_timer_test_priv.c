@@ -63,41 +63,41 @@
 		TEST_FAIL_MESSAGE(setTimerFail); \
 	}
 
-memCharString invalidStartFail[] PROG_FLASH = {"Start State"};
-memCharString startFail[] PROG_FLASH = {"Start"};
-memCharString noSetTimerFail[] PROG_FLASH = {"No Set Timer"};
-memCharString restartFail[] PROG_FLASH = {"Restart"};
-memCharString cancelFail[] PROG_FLASH = {"Stop"};
-memCharString recancelFail[] PROG_FLASH = {"Restop"};
-memCharString allNullFail[] PROG_FLASH = {"All Null"};
-memCharString freqNullFail[] PROG_FLASH = {"Freq Null"};
-memCharString funcNullFail[] PROG_FLASH = {"Func Null"};
+memCharString invalidStartFail[] = {"Start State"};
+memCharString startFail[] = {"Start"};
+memCharString noSetTimerFail[] = {"No Set Timer"};
+memCharString restartFail[] = {"Restart"};
+memCharString cancelFail[] = {"Stop"};
+memCharString recancelFail[] = {"Restop"};
+memCharString allNullFail[] = {"All Null"};
+memCharString freqNullFail[] = {"Freq Null"};
+memCharString funcNullFail[] = {"Func Null"};
 
-memCharString unclaimInvalidFail[] PROG_FLASH = {"Unclaim Invalid"};
-memCharString unclaimNotClaimedFail[] PROG_FLASH = {"Unclaim Unclaimed"};
-memCharString claimLoopFail[] PROG_FLASH = {"Claim Loop"};
-memCharString allClaimedFail[] PROG_FLASH = {"All Claimed"};
-memCharString unclaimLoopFail[] PROG_FLASH = {"Unclaim Loop"};
-memCharString notClaimedFail[] PROG_FLASH = {"Not Claimed"};
-memCharString isClaimedFail[] PROG_FLASH = {"Is Claimed"};
-memCharString didntUnclaimFail[] PROG_FLASH = {"Didn't Unclaim"};
-memCharString noStartFail[] PROG_FLASH = {"No Start"};
-memCharString claimedActiveFail[] PROG_FLASH = {"Claimed Active"};
-memCharString sameTimerFail[] PROG_FLASH = {"Same Timer"};
+memCharString unclaimInvalidFail[] = {"Unclaim Invalid"};
+memCharString unclaimNotClaimedFail[] = {"Unclaim Unclaimed"};
+memCharString claimLoopFail[] = {"Claim Loop"};
+memCharString allClaimedFail[] = {"All Claimed"};
+memCharString unclaimLoopFail[] = {"Unclaim Loop"};
+memCharString notClaimedFail[] = {"Not Claimed"};
+memCharString isClaimedFail[] = {"Is Claimed"};
+memCharString didntUnclaimFail[] = {"Didn't Unclaim"};
+memCharString noStartFail[] = {"No Start"};
+memCharString claimedActiveFail[] = {"Claimed Active"};
+memCharString sameTimerFail[] = {"Same Timer"};
 
-memCharString freq0Fail[] PROG_FLASH = {"Freq 0"};
-memCharString freqMaxFail[] PROG_FLASH = {"Freq Max"};
-memCharString notSameTimerFail[] PROG_FLASH = {"Not Same Timer"};
-memCharString isStartFail[] PROG_FLASH = {"Is Start"};
-memCharString notStartFail[] PROG_FLASH = {"Not Start"};
-memCharString setTimerFail[] PROG_FLASH = {"Set Timer"};
-memCharString setLoopFail[] PROG_FLASH = {"Set Loop"};
-memCharString maxTimerFail[] PROG_FLASH = {"Max Timer"};
-memCharString startLoopFail[] PROG_FLASH = {"Start Loop"};
-memCharString cancelLoopFail[] PROG_FLASH = {"Cancel Loop"};
-memCharString cancelInvalidFail[] PROG_FLASH = {"Cancel Invalid"};
-memCharString startedLoopFail[] PROG_FLASH = {"Started Loop"};
-memCharString didntStopFail[] PROG_FLASH = {"Didn't Stop"};
+memCharString freq0Fail[] = {"Freq 0"};
+memCharString freqMaxFail[] = {"Freq Max"};
+memCharString notSameTimerFail[] = {"Not Same Timer"};
+memCharString isStartFail[] = {"Is Start"};
+memCharString notStartFail[] = {"Not Start"};
+memCharString setTimerFail[] = {"Set Timer"};
+memCharString setLoopFail[] = {"Set Loop"};
+memCharString maxTimerFail[] = {"Max Timer"};
+memCharString startLoopFail[] = {"Start Loop"};
+memCharString cancelLoopFail[] = {"Cancel Loop"};
+memCharString cancelInvalidFail[] = {"Cancel Invalid"};
+memCharString startedLoopFail[] = {"Started Loop"};
+memCharString didntStopFail[] = {"Didn't Stop"};
 
 /**
  * Priority claim statements
@@ -108,12 +108,12 @@ memCharString didntStopFail[] PROG_FLASH = {"Didn't Stop"};
  * U: Unclaimed
  */
 
-memCharString pNotStartedClaimedFail[] PROG_FLASH = {"PNC"};
-memCharString pNotStartedClaimedUnequalFail[] PROG_FLASH = {"PNC Unequal"};
-memCharString pStartedClaimedFail[] PROG_FLASH = {"PSC"};
-memCharString pStartedClaimedUnequalFail[] PROG_FLASH = {"PSC Unequal"};
-memCharString pStartedUnclaimedFail[] PROG_FLASH = {"PSU"};
-memCharString pStartedUnclaimedUnequalFail[] PROG_FLASH = {"PSU Unequal"};
+memCharString pNotStartedClaimedFail[] = {"PNC"};
+memCharString pNotStartedClaimedUnequalFail[] = {"PNC Unequal"};
+memCharString pStartedClaimedFail[] = {"PSC"};
+memCharString pStartedClaimedUnequalFail[] = {"PSC Unequal"};
+memCharString pStartedUnclaimedFail[] = {"PSU"};
+memCharString pStartedUnclaimedUnequalFail[] = {"PSU Unequal"};
 
 volatile uint32_t hardTimerCount = 0U;
 
@@ -481,7 +481,7 @@ void testUHWT() {
 
 #else
 
-memCharString passTimerIgnore[] PROG_FLASH = {"Ignoring timer tests"};
+memCharString passTimerIgnore[] = {"Ignoring timer tests"};
 
 void passTimers() {
 	TEST_IGNORE_MESSAGE(passTimerIgnore);

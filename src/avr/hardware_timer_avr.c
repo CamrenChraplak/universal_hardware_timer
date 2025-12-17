@@ -50,18 +50,6 @@ typedef enum {
 typedef uint16_t prescalar_t; // scalar type
 typedef uint16_t timertick_t; // timer tick type
 
-#if UHWT_TIMER_COUNT <= 4
-	uint8_t timerStates = 0U; // started states and claimed states
-#elif UHWT_TIMER_COUNT <= 8
-	uint16_t timerStates = 0U; // started states and claimed states
-#elif UHWT_TIMER_COUNT <= 16
-	uint32_t timerStates = 0U; // started states and claimed states
-#elif UHWT_TIMER_COUNT <= 32
-	uint64_t timerStates = 0U; // started states and claimed states
-#else
-	#error "Too many timers"
-#endif
-
 const prescalar_t scalarMask[] PROGMEM = {
 	#ifdef SCALAR_1_ENABLE
 		1, // SCALAR_1
@@ -304,44 +292,6 @@ uhwt_freq_t calculateFreq(prescalar_enum_t scalar, timertick_t timerTicks) {
 }
 
 /**
- * Sets timer started state
- * 
- * @param timer timer to set
- * @param state whether or not timer is started
- */
-void setTimerStarted(uhwt_timer_t timer, bool state) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return;
-	}
-	if (state) {
-		timerStates |= (1 << timer);
-	}
-	else {
-		timerStates &= (~(1 << timer));
-	}
-}
-
-/**
- * Sets timer claimed state
- * 
- * @param timer timer to set
- * @param state whether or not timer is claimed
- */
-void setTimerClaimed(uhwt_timer_t timer, bool state) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return;
-	}
-	if (state) {
-		timerStates |= (1 << (timer + UHWT_TIMER_COUNT));
-	}
-	else {
-		timerStates &= (~(1 << (timer + UHWT_TIMER_COUNT)));
-	}
-}
-
-/**
  * Tests if given scalar and timer ticks equal a given frequency
  * 
  * @param freq target frequency
@@ -413,46 +363,37 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, t
 }
 
 bool hardTimerClaimed(uhwt_timer_t timer) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return false;
-	}
-	return (!!((1 << (UHWT_TIMER_COUNT + timer)) & timerStates));
-}
-
-/**
- * Tests if given timer is available to claim
- * 
- * @param timer timer to test
- * 
- * @return if timer is available
- */
-bool availableClaim(uhwt_timer_t timer) {
-	if (!hardTimerClaimed(timer) && !hardTimerStarted(timer)) {
-		setTimerClaimed(timer, true);
-		return true;
-	}
-	return false;
+	return uhwtTimerClaimed(timer);
 }
 
 uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
 
-	// checks priorities
-	if (priority -> slowestTimer) {
-		if (availableClaim(TIMER_1_ALIAS)) {
-			return TIMER_1_ALIAS;
-		}
+	uhwt_timer_t timer = UHWT_TIMER_INVALID;
+
+	if (priority != NULL) {
+		uhwtClaimTimerStats(&timer, *priority);
 	}
-	if (priority -> mostAccurateTimer) {
-		if (availableClaim(TIMER_2_ALIAS)) {
-			return TIMER_2_ALIAS;
-		}
+	else {
+		uhwtClaimTimer(&timer);
 	}
 
-	// uses default order if no priority matched
-	for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
-		if (availableClaim(i)) {
-			return i;
+	return timer;
+}
+
+uhwt_timer_t uhwtPlatformClaimTimerStats(uhwt_claim_s claimArgs) {
+
+	uhwt_timer_t timer = TIMER_1_ALIAS;
+
+	// checks priorities
+	if (claimArgs.slowestTimer) {
+		if (uhwtClaimTimer(&timer)) {
+			return timer;
+		}
+	}
+	timer = TIMER_2_ALIAS;
+	if (claimArgs.mostAccurateTimer) {
+		if (uhwtClaimTimer(&timer)) {
+			return timer;
 		}
 	}
 
@@ -460,11 +401,7 @@ uhwt_timer_t claimTimer(uhwt_claim_s *priority) {
 }
 
 bool unclaimTimer(uhwt_timer_t timer) {
-	if (hardTimerClaimed(timer)) {
-		setTimerClaimed(timer, false);
-		return true;
-	}
-	return false;
+	return uhwtUnclaimTimer(timer);
 }
 
 /**
@@ -529,12 +466,12 @@ bool unclaimTimer(uhwt_timer_t timer) {
 uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_enum_t *scalar, timertick_t *timerTicks) {
 
 	// returns started timer early
-	if (hardTimerStarted(*timer) && hardTimerClaimed(*timer)) {
+	if (uhwtTimerStarted(*timer) && uhwtTimerClaimed(*timer)) {
 		return HARD_TIMER_FAIL;
 	}
 
 	// gets stats for current timer
-	if (!hardTimerStarted(*timer) && *timer != UHWT_TIMER_INVALID) {
+	if (!uhwtTimerStarted(*timer) && *timer != UHWT_TIMER_INVALID) {
 		SET_FIRST_FREQ(*freq, *timer, *freq, *timer, *timerTicks, *scalar);
 		return HARD_TIMER_SLIGHTLY_OFF;
 	}
@@ -545,7 +482,7 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 	if (*freq < FREQ_MIN_8_COUNTER) {
 		// calculates slow frequencies for timer 1
 
-		if (hardTimerStarted(TIMER_1_ALIAS) || hardTimerClaimed(TIMER_1_ALIAS)) {
+		if (uhwtTimerStarted(TIMER_1_ALIAS) || uhwtTimerClaimed(TIMER_1_ALIAS)) {
 			// slow timer unavailable
 			return HARD_TIMER_FAIL;
 		}
@@ -567,12 +504,12 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 		uhwt_freq_t tempFreq = *freq;
 
 		// gets timer 0
-		if (!hardTimerStarted(TIMER_0_ALIAS) && !hardTimerClaimed(TIMER_0_ALIAS)) {
+		if (!uhwtTimerStarted(TIMER_0_ALIAS) && !uhwtTimerClaimed(TIMER_0_ALIAS)) {
 			SET_FIRST_FREQ(*freq, *timer, tempFreq, TIMER_0_ALIAS, *timerTicks, *scalar);
 		}
 
 		// gets timer 1
-		if (!hardTimerStarted(TIMER_1_ALIAS) && !hardTimerClaimed(TIMER_1_ALIAS)) {
+		if (!uhwtTimerStarted(TIMER_1_ALIAS) && !uhwtTimerClaimed(TIMER_1_ALIAS)) {
 
 			if (*timer == UHWT_TIMER_INVALID) {
 				// timer 0 unavailable
@@ -585,7 +522,7 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 		}
 
 		// gets timer 2
-		if (!hardTimerStarted(TIMER_2_ALIAS) && !hardTimerClaimed(TIMER_2_ALIAS)) {
+		if (!uhwtTimerStarted(TIMER_2_ALIAS) && !uhwtTimerClaimed(TIMER_2_ALIAS)) {
 
 			if (*timer == UHWT_TIMER_INVALID) {
 				// timer 0 and 1 unavailable
@@ -608,11 +545,7 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 }
 
 bool hardTimerStarted(uhwt_timer_t timer) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return false;
-	}
-	return !!((1 << timer) & timerStates);
+	return uhwtTimerStarted(timer);
 }
 
 /**
@@ -628,7 +561,7 @@ bool hardTimerStarted(uhwt_timer_t timer) {
 
 bool cancelHardTimer(uhwt_timer_t timer) {
 
-	if (hardTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer)) {
 		#if UHWT_TIMER_COUNT > 0
 			if (timer == UHWT_TIMER0) {
 				#if SKIP_TIMER_INDEX != 0
@@ -656,7 +589,7 @@ bool cancelHardTimer(uhwt_timer_t timer) {
 				#endif
 			}
 		#endif
-		setTimerStarted(timer, false);
+		uhwtStopTimer(timer);
 		return true;
 	}
 
@@ -695,7 +628,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 		return false;
 	}
 
-	if (!hardTimerStarted(*timer)) {
+	if (!uhwtTimerStarted(*timer)) {
 
 		setHardTimerFunction(*timer, function, params);
 
@@ -727,7 +660,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 			}
 		#endif
 
-		setTimerStarted(*timer, true);
+		uhwtStartTimer(*timer);
 		return true;
 	}
 

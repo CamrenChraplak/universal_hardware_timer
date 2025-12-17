@@ -23,13 +23,6 @@
 
 typedef const char memCharString;
 
-#if UHWT_SUPPORT_AVR
-	#include <avr/pgmspace.h>
-	#define PROG_FLASH PROGMEM // storage specifier for flash space
-#else
-	#define PROG_FLASH // storage specifier for flash space
-#endif
-
 // use Unity
 #if defined(PIO_UNIT_TESTING) || defined(ESP_IDF_UNIT_TESTING) || defined(PICO_SDK_UNIT_TESTING)
 	#include <unity.h>
