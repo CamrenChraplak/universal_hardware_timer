@@ -28,6 +28,7 @@
 
 #if UHWT_TIMER_COUNT > 0
 
+// TODO: setting to 1000 from 10 to test esp32 makes uno error
 #define TEST_SLOW_FREQ 10 // frequency for testing slow timing
 #ifndef TEST_FAST_FREQ
 	#define TEST_FAST_FREQ UHWT_TIMER_FREQ_MAX // target frequency

@@ -25,6 +25,7 @@
 #include <avr/pgmspace.h>
 
 typedef enum {
+	SCALAR_0, // timer prescalar of 0, represents invalid
 	#ifdef SCALAR_1_ENABLE
 		SCALAR_1, // timer prescalar of 1
 	#endif
@@ -49,6 +50,7 @@ typedef enum {
 } prescalar_enum_t; // pre scalar type
 
 const uhwt_prescalar_t scalarMask[] PROGMEM = {
+	0, // SCALAR_0
 	#ifdef SCALAR_1_ENABLE
 		1, // SCALAR_1
 	#endif
@@ -250,6 +252,17 @@ ISR(TIMER2_COMPA_vect) {
 
 #endif
 
+/**
+ * Gets scalar mask value from enum
+ * 
+ * @param i scalar enum
+ * 
+ * @return literal int value
+ */
+uint16_t getMask(prescalar_enum_t scalar) {
+	return ((uint16_t)pgm_read_word_near(scalarMask + scalar));
+}
+
 /****************************
  * Platform Functions
 ****************************/
@@ -284,32 +297,59 @@ uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
 	return UHWT_TIMER_INVALID;
 }
 
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
+	if ((scalar == SCALAR_32 || scalar == SCALAR_128) && timer != TIMER_2_ALIAS) {
+		return false;
+	}
+	return true;
+}
+
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
+	if (ticks > UINT8_MAX && timer != TIMER_1_ALIAS) {
+		return false;
+	}
+	return true;
+}
+
+uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
+	switch(prevScalar) {
+		case(SCALAR_0):
+			return SCALAR_1024;
+		break;
+		case(SCALAR_1024):
+			return SCALAR_256;
+		break;
+		case(SCALAR_256):
+			return SCALAR_128;
+		break;
+		case(SCALAR_128):
+			return SCALAR_64;
+		break;
+		case(SCALAR_64):
+			return SCALAR_32;
+		break;
+		case(SCALAR_32):
+			return SCALAR_8;
+		break;
+		case(SCALAR_8):
+			return SCALAR_1;
+		break;
+		case(SCALAR_1):
+			return SCALAR_0;
+		break;
+		default:
+			return SCALAR_0;
+		break;
+	};
+}
+
+uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar) {
+	return (F_CPU / (getMask(scalar) * targetFreq)) - 1;
+}
+
 /****************************
  * Timer Functions
 ****************************/
-
-/**
- * Gets scalar mask value from enum
- * 
- * @param i scalar enum
- * 
- * @return literal int value
- */
-uint16_t getMask(prescalar_enum_t scalar) {
-	return ((uint16_t)pgm_read_word_near(scalarMask + scalar));
-}
-
-/**
- * Calculates timer ticks from scalar value and frequency
- * 
- * @param scalar scalar enum
- * @param freq frequency to get ticks for
- * 
- * @return calculated timer ticks
- */
-uhwt_timertick_t calculateTicks(prescalar_enum_t scalar, uhwt_freq_t freq) {
-	return (F_CPU / (getMask(scalar) * freq)) - 1;
-}
 
 /**
  * Gets stats for any timer
@@ -326,39 +366,47 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, u
 
 	uhwt_freq_t closestFreq = 0;
 
-	for (uint8_t i = SCALAR_MASK_SIZE - 1; i < SCALAR_MASK_SIZE; i--) {
+	prescalar_enum_t tempScalar = SCALAR_0;
+	tempScalar = uhwtGetNextPreScalar(tempScalar);
+
+	while (tempScalar != SCALAR_0) {
 
 		// ignore invalid scalars
-		if ((i == SCALAR_32 || i == SCALAR_128) && timer != TIMER_2_ALIAS) {
+		if (!uhwtValidPreScalar(timer, tempScalar)) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
 			continue;
 		}
 
 		// ignore invalid ticks
-		if ((uhwt_timertick_t)(F_CPU / (getMask(i) * *freq)) < 1) {
+		if ((uhwt_timertick_t)(F_CPU / (getMask(tempScalar) * *freq)) < 1) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
 			continue;
 		}
-		if (calculateTicks(i, *freq) > UINT16_MAX) {
+
+		uhwt_timertick_t calcTicks = uhwtCalcTicks(*freq, tempScalar);
+
+		if (!uhwtValidTimerTicks(timer, calcTicks)) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
 			continue;
 		}
-		if (calculateTicks(i, *freq) > UINT8_MAX && timer != TIMER_1_ALIAS) {
-			continue;
-		}
-		uhwt_timertick_t calcTicks = calculateTicks(i, *freq);
 
 		// frequency is exact value
-		if (uhwtEqualFreq(*freq, i, calcTicks)) {
-			*scalar = i;
+		if (uhwtEqualFreq(*freq, tempScalar, calcTicks)) {
+			*scalar = tempScalar;
 			*timerTicks = calcTicks;
 			return;
 		}
 
 		// test if newly calculated frequency is closer
-		if (abs(*freq - closestFreq) > abs(*freq - uhwtCalcFreq(i, calcTicks))) {
-			*scalar = (prescalar_enum_t)i;
+		if (abs(*freq - closestFreq) > abs(*freq - uhwtCalcFreq(tempScalar, calcTicks))) {
+			*scalar = (prescalar_enum_t)tempScalar;
 			*timerTicks = calcTicks;
-			closestFreq = uhwtCalcFreq(i, calcTicks);
+			closestFreq = uhwtCalcFreq(tempScalar, calcTicks);
 		}
+
+		tempScalar = uhwtGetNextPreScalar(tempScalar);
 	}
+
 	*freq = closestFreq;
 }
 
@@ -378,7 +426,7 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, u
 	(origTimer) = (newTimer); \
 	getStats(&(newFreq), (origTimer), &(newScalar), &(newTicks)); \
 	if (uhwtEqualFreq((origFreq), (newScalar), (newTicks))) { \
-		return HARD_TIMER_OK; \
+		return true; \
 	}
 
 /**
@@ -405,7 +453,7 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, u
 		(origTicks) = (newTicks); \
 		if (uhwtEqualFreq((origFreq), (origScalar), (origTicks))) { \
 			(origFreq) = (newFreq); \
-			return HARD_TIMER_OK; \
+			return true; \
 		} \
 	}
 
@@ -421,17 +469,17 @@ void getStats(uhwt_freq_t *freq, uhwt_timer_t timer, prescalar_enum_t *scalar, u
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_enum_t *scalar, uhwt_timertick_t *timerTicks) {
+bool getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescalar_enum_t *scalar, uhwt_timertick_t *timerTicks) {
 
 	// returns started timer early
 	if (uhwtTimerStarted(*timer) && uhwtTimerClaimed(*timer)) {
-		return HARD_TIMER_FAIL;
+		return false;
 	}
 
 	// gets stats for current timer
 	if (!uhwtTimerStarted(*timer) && *timer != UHWT_TIMER_INVALID) {
 		SET_FIRST_FREQ(*freq, *timer, *freq, *timer, *timerTicks, *scalar);
-		return HARD_TIMER_SLIGHTLY_OFF;
+		return true;
 	}
 
 	// gets best available timer
@@ -442,11 +490,11 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 
 		if (uhwtTimerStarted(TIMER_1_ALIAS) || uhwtTimerClaimed(TIMER_1_ALIAS)) {
 			// slow timer unavailable
-			return HARD_TIMER_FAIL;
+			return false;
 		}
 
 		SET_FIRST_FREQ(*freq, *timer, *freq, TIMER_1_ALIAS, *timerTicks, *scalar);
-		return HARD_TIMER_SLIGHTLY_OFF;
+		return true;
 	}
 	else {
 		/**
@@ -493,12 +541,12 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, prescala
 		}
 
 		if (*timer == UHWT_TIMER_INVALID) {
-			return HARD_TIMER_FAIL;
+			return false;
 		}
 
 		*freq = tempFreq;
 
-		return HARD_TIMER_SLIGHTLY_OFF;
+		return true;
 	}
 }
 
@@ -578,7 +626,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 	prescalar_enum_t scalar;
 	uhwt_timertick_t timerTicks;
 
-	if (getHardTimerStats(freq, timer, &scalar, &timerTicks) == HARD_TIMER_FAIL) {
+	if (!getHardTimerStats(freq, timer, &scalar, &timerTicks)) {
 		return false;
 	}
 

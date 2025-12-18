@@ -54,13 +54,6 @@
  */
 #define HARD_TIMER_CONCATENATE3(a, b, c) a ## b ## c
 
-// codes when getting hard timer stats
-typedef enum {
-	HARD_TIMER_OK, // hard timer stats retrieved
-	HARD_TIMER_SLIGHTLY_OFF, // retrieved values that aren't completely accurate
-	HARD_TIMER_FAIL, // failed to get timer values
-} uhwt_status_t;
-
 #if UHWT_SUPPORT_ESP32
 	#include <esp_idf_version.h>
 	#if ESP_IDF_VERSION_MAJOR == 4
@@ -131,6 +124,45 @@ uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs);
  * @return if presets set equal to timer
  */
 bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
+
+/**
+ * Tests if given pre scalar is valid for timer
+ * 
+ * @param timer timer to test
+ * @param scalar pre scalar to test
+ * 
+ * @return if pre scalar is valid
+ */
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar);
+
+/**
+ * Tests if given timer ticks is valid for timer
+ * 
+ * @param timer timer to test
+ * @param ticks timer ticks to test
+ * 
+ * @return if timer ticks is valid
+ */
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks);
+
+/**
+ * Gets next pre scalar value
+ * 
+ * @param prevScalar pre scalar to increment
+ * 
+ * @return next pre scalar
+ */
+uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar);
+
+/**
+ * Calculates timer ticks
+ * 
+ * @param targetFreq target frequency to achieve
+ * @param scalar preset pre scalar
+ * 
+ * @return computed timer ticks
+ */
+uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar);
 
 #ifdef __cplusplus
 }

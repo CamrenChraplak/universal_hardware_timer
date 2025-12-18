@@ -112,7 +112,8 @@ gptimer_handle_t *timers[] = {
 typedef gptimer_handle_t** timer_ptr_t;
 
 // gptimer requires this as minimum freq
-#define HARD_TIMER_FREQ_MIN 1221
+#define HARD_TIMER_FREQ_MIN ((APB_CLK_FREQ / SCALAR_MAX) + 1)
+//#define HARD_TIMER_FREQ_MIN 1221
 
 #endif
 
@@ -129,6 +130,59 @@ bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt
 		return false;
 	}
 	return true;
+}
+
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
+	
+	/**
+	 * Pre Scalar counts (and amount of timers)
+	 * 
+	 * General Timers: https://docs.espressif.com/projects/arduino-esp32/en/latest/api/timer.html
+	 * 
+	 * ESP32: 64 (2x2) https://documentation.espressif.com/esp32_datasheet_en.pdf
+	 * ESP32-S2: 64 (4? general vs 1? datasheet) https://documentation.espressif.com/esp32-s2_datasheet_en.pdf
+	 * ESP32-S3: 54? datasheet vs 64? general (4) https://documentation.espressif.com/esp32-s3_datasheet_en.pdf
+	 * ESP32-C2 or ESP-8684: 54 datasheet only (1 datasheet only) https://documentation.espressif.com/esp8684_datasheet_en.pdf
+	 * ESP32-C3: 54 (2) https://documentation.espressif.com/esp32-c3_datasheet_en.pdf
+	 * ESP32-C5: 54 datasheet only (2 datasheet only) https://documentation.espressif.com/esp32-c5_datasheet_en.pdf
+	 * ESP32-C6: 54? datasheet vs 64? general (2) https://documentation.espressif.com/esp32-c6_datasheet_en.pdf
+	 * ESP32-C61: 54 datasheet only (2 datasheet only) https://documentation.espressif.com/esp32-c61_datasheet_en.pdf
+	 * ESP32-H2: 54? datasheet vs 64? general (2) https://documentation.espressif.com/esp32-h2_datasheet_en.pdf
+	 * ESP32-P4: 54 datasheet only (4 datasheet only) https://documentation.espressif.com/esp32-p4-chip-revision-v1.3_datasheet_en.pdf
+	 */
+
+	// TODO: 54 bit ticks
+	
+	return true;
+}
+
+uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
+	// u16 bit max
+	// 2^16 - 1 -> 2^15 -> 2^14 -> ... -> 2^2 -> 2^1 -> 1 -> 0 -> 2^16 - 1
+
+	#define MAX_PRESCALAR_BITS 16
+	
+	// 0: start of request
+	if (prevScalar == 0) {
+		return UINT16_MAX;
+	}
+	// 2^16 - 1
+	else if (prevScalar == UINT16_MAX) {
+		return 0b1000000000000000;
+	}
+	else {
+		prevScalar = prevScalar >> (1);
+		for (uint8_t i = 0; i < MAX_PRESCALAR_BITS; i++) {
+			if (!(prevScalar ^ (1 << i))) {
+				return prevScalar;
+			}
+		}
+	}
+	return 0;
+}
+
+uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar) {
+	return (uhwt_timertick_t)APB_CLK_FREQ / ((uhwt_timertick_t)targetFreq * (uhwt_timertick_t)scalar);
 }
 
 /****************************
@@ -188,18 +242,13 @@ timer_ptr_t getTimer(uhwt_timer_t timer) {
  * 
  * @note freq value is changed to actual freq if values are slightly off
  */
-uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
-
-	uhwt_status_t status = HARD_TIMER_OK;
-
-	// freq doesn't divide evenly into APB_CLK
-	if (APB_CLK_FREQ % *freq != 0) {
-		status = HARD_TIMER_SLIGHTLY_OFF;
-	}
+bool getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
 
 	// scalar * timerTicks = APB_CLK / freq
 	uhwt_freq_t target = APB_CLK_FREQ / *freq;
 
+	// APB_CLK_FREQ / *freq <= SCALAR_MAX
+	// 1220.72 <= *freq
 	if (target <= SCALAR_MAX) {
 		// scalar within max value
 		*scalar = (uhwt_prescalar_t)target;
@@ -207,12 +256,17 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_pre
 	}
 	else {
 		// scalar not within max value
-		*scalar = 1;
-		*timerTicks = (uhwt_timertick_t)target;
 
-		while (*timerTicks % 2 == 0 && *scalar * 2 <= SCALAR_MAX) {
-			*timerTicks /= 2;
-			*scalar *= 2;
+		*scalar = 0;
+		*scalar = uhwtGetNextPreScalar(*scalar);
+		*timerTicks = uhwtCalcTicks(*freq, *scalar);
+		while(!uhwtEqualFreq(*freq, *scalar, *timerTicks) && *scalar != 0) {
+			*scalar = uhwtGetNextPreScalar(*scalar);
+			*timerTicks = uhwtCalcTicks(*freq, *scalar);
+		}
+
+		if (*scalar == 0) {
+			return false;
 		}
 	}
 
@@ -223,10 +277,10 @@ uhwt_status_t getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_pre
 	}
 
 	if (*timer == UHWT_TIMER_INVALID) {
-		return HARD_TIMER_FAIL;
+		return false;
 	}
 
-	return status;
+	return true;
 }
 
 bool cancelHardTimer(uhwt_timer_t timer) {
@@ -275,7 +329,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 	uhwt_prescalar_t scalar;
 	uhwt_timertick_t timerTicks;
 
-	if (getHardTimerStats(freq, timer, &scalar, &timerTicks) == HARD_TIMER_FAIL) {
+	if (!getHardTimerStats(freq, timer, &scalar, &timerTicks)) {
 		return false;
 	}
 
