@@ -164,6 +164,16 @@ uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar);
  */
 uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar);
 
+/**
+ * Calculates timer pre scalar
+ * 
+ * @param targetFreq target frequency to achieve
+ * @param ticks preset timer ticks
+ * 
+ * @return computed pre scalar
+ */
+uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks);
+
 #ifdef __cplusplus
 }
 #endif

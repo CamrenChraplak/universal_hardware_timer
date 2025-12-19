@@ -79,40 +79,20 @@ uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar) 
 	return PICO_SDK_TIMER_MAX / targetFreq;
 }
 
+uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) {
+	return 1;
+}
+
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
+	if (scalar == 1) {
+		return true;
+	}
+	return false;
+}
+
 /****************************
  * Timer Functions
 ****************************/
-
-/**
- * Gets hard timer stats for target frequency
- * 
- * @param freq pointer to desired frequency in Hz
- * @param timer pointer to timer ID
- * @param scalar pointer to scalar value
- * @param timerTicks pointer to desired tick count
- * 
- * @return result of getting timer stats
- * 
- * @note freq value is changed to actual freq if values are slightly off
- */
-bool getHardTimerStats(uhwt_freq_t *freq, uhwt_timer_t *timer, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
-
-	*scalar = 0;
-	*scalar = uhwtGetNextPreScalar(*scalar);
-	*timerTicks = uhwtCalcTicks(*freq, *scalar);
-
-	*freq = uhwtCalcFreq(*scalar, *timerTicks);
-
-	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
-		*timer = uwhtGetNextTimer();
-	}
-	
-	if (*timer == UHWT_TIMER_INVALID) {
-		return false;
-	}
-
-	return true;
-}
 
 bool cancelHardTimer(uhwt_timer_t timer) {
 
@@ -140,9 +120,13 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 	uhwt_prescalar_t scalar;
 	uhwt_timertick_t timerTicks;
 	
-	if (!getHardTimerStats(freq, timer, &scalar, &timerTicks)) {
+	if (!uhwtGetStats(timer, *freq, &scalar, &timerTicks)) {
 		return false;
 	}
+	if (!uhwtValidPreScalar(*timer, scalar) || !uhwtValidTimerTicks(*timer, timerTicks)) {
+		return false;
+	}
+	*freq = uhwtCalcFreq(scalar, timerTicks);
 
 	if (!uhwtTimerStarted(*timer)) {
 		struct repeating_timer* timerPtr = getTimer(*timer);

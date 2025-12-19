@@ -316,11 +316,109 @@ uhwt_timer_t uwhtGetNextTimerStats(uhwt_claim_s claimArgs) {
 	return timer;
 }
 
+/**
+ * Gets difference between given frequencies
+ * 
+ * @param freq1 first frequency to test
+ * @param freq2 second frequency to test
+ * 
+ * @result difference between frequencies
+ */
+uhwt_freq_t uhwtFreqDelta(uhwt_freq_t freq1, uhwt_freq_t freq2) {
+	if (freq1 > freq2) {
+		return freq1 - freq2;
+	}
+	return freq2 - freq1;
+}
+
 bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	if (uhwtCalcFreq(scalar, ticks) == targetFreq) {
+	uhwt_freq_t calcFreq = uhwtCalcFreq(scalar, ticks);
+	if (!uhwtValidFrequency(targetFreq) || !uhwtValidFrequency(calcFreq)) {
+		return false;
+	}
+	if (calcFreq == targetFreq) {
 		return uhwtPlatformEqualFreq(targetFreq, scalar, ticks);
 	}
 	return false;
+}
+
+bool uhwtGetStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
+	if (timer == NULL || scalar == NULL || timerTicks == NULL) {
+		return false;
+	}
+
+	// gets next free timer if one isn't selected
+	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
+		*timer = uwhtGetNextTimer();
+	}
+	if (*timer == UHWT_TIMER_INVALID) {
+		return false;
+	}
+
+	// get tick of 1 and corresponding scalar
+	*timerTicks = 1;
+	*scalar = uhwtCalcScalar(targetFreq, *timerTicks);
+
+	// test if tick of 1 works
+	if (uhwtValidPreScalar(*timer, *scalar)) {
+		if (uhwtEqualFreq(targetFreq, *scalar, *timerTicks)) {
+			return true;
+		}
+	}
+
+	// gets closest frequency
+
+	*scalar = 0;
+	*timerTicks = 0;
+
+	uhwt_freq_t closestFreq = 0;
+	uhwt_prescalar_t tempScalar = uhwtGetNextPreScalar(*scalar);
+
+	while (tempScalar != 0) {
+		// ignore invalid scalars
+		if (!uhwtValidPreScalar(*timer, tempScalar)) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
+			continue;
+		}
+
+		// ignore invalid ticks
+		uhwt_timertick_t calcTicks = uhwtCalcTicks(targetFreq, tempScalar);
+		if (!uhwtValidTimerTicks(*timer, calcTicks)) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
+			continue;
+		}
+
+		// frequency is exact value
+		if (uhwtEqualFreq(targetFreq, tempScalar, calcTicks)) {
+			*scalar = tempScalar;
+			*timerTicks = calcTicks;
+			break;
+		}
+
+		uhwt_freq_t tempFreq = uhwtCalcFreq(tempScalar, calcTicks);
+
+		// test if newly calculated frequency is closer
+		if (uhwtFreqDelta(targetFreq, closestFreq) > uhwtFreqDelta(targetFreq, tempFreq)) {
+			*scalar = tempScalar;
+			*timerTicks = calcTicks;
+			closestFreq = tempFreq;
+		}
+
+		tempScalar = uhwtGetNextPreScalar(tempScalar);
+	}
+
+	if (!uhwtValidPreScalar(*timer, *scalar) || !uhwtValidTimerTicks(*timer, *timerTicks)) {
+		return false;
+	}
+
+	return true;
+}
+
+bool uhwtValidFrequency(uhwt_freq_t freq) {
+	if (freq > UHWT_TIMER_FREQ_MAX) {
+		return false;
+	}
+	return true;
 }
 
 uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) __attribute__((weak));
@@ -328,17 +426,18 @@ uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
 	return UHWT_TIMER_INVALID;
 }
 
-bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) __attribute__((weak));
-bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	return true;
-}
-
 bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) __attribute__((weak));
 bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
+	if (scalar == 0) {
+		return false;
+	}
 	return true;
 }
 
 bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) __attribute__((weak));
 bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
+	if (ticks == 0) {
+		return false;
+	}
 	return true;
 }

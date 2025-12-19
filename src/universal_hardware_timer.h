@@ -350,6 +350,29 @@ uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
  */
 bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
 
+/**
+ * Tests if given frequency is valid or not
+ * 
+ * @param freq frequency to test
+ * 
+ * @return if frequency is valid
+ */
+bool uhwtValidFrequency(uhwt_freq_t freq);
+
+/**
+ * Gets pre scalar and timer tick stats for target frequency for timer
+ * 
+ * @param timer pointer to timer to store new timer
+ * @param targetFreq target frequency to achieve
+ * @param scalar pointer to pre scalar to store new value
+ * @param timerTicks pointer to timer ticks to store new value
+ * 
+ * @return if stats successfully set
+ * 
+ * @warning can modify timer pointer
+ */
+bool uhwtGetStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks);
+
 #ifdef __cplusplus
 }
 #endif
