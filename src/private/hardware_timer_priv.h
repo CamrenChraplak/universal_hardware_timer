@@ -72,6 +72,7 @@
 #elif UHWT_SUPPORT_AVR
 	typedef void* uhwt_platform_callback_ptr_t; // specific platform callback pointer type
 	#define UHWT_NO_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
+	#define UHWT_CONFIGS_NOT_EQUAL // hardware timers don't have equal configurations
 #endif
 
 #ifdef __cplusplus

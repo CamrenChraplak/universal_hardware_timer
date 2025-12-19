@@ -240,13 +240,13 @@ bool cancelHardTimer(uhwt_timer_t timer);
  * 
  * Started:           -,           -
  * 
- * Not Started:       -,       Best Timer
+ * Not Started:       -,       Free Timer
  * 
  * setHardTimer(UHWT_TIMER#, ...):
  * 
  *                Claimed:     Unclaimed:
  * 
- * Started:         Fail,      Best Timer
+ * Started:         Fail,      Free Timer
  * 
  * Not Started:  UHWT_TIMER#,  UHWT_TIMER#
  * 
@@ -255,17 +255,6 @@ bool cancelHardTimer(uhwt_timer_t timer);
 bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params,
 		uhwt_priority_t priority);
-
-/**
- * Sets function to execute for timer ISR
- * 
- * @param timer timer to set
- * @param function function to set
- * 
- * @return if successfully set
- */
-bool setHardTimerFunction(uhwt_timer_t timer,
-		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
 /**
  * Tests if timer is claimed
@@ -348,7 +337,8 @@ uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
  * 
  * @return if presets set equal to timer
  */
-bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
+bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar,
+		uhwt_timertick_t ticks);
 
 /**
  * Tests if given frequency is valid or not
@@ -360,7 +350,7 @@ bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timerti
 bool uhwtValidFrequency(uhwt_freq_t freq);
 
 /**
- * Gets pre scalar and timer tick stats for target frequency for timer
+ * Gets pre scalar and timer tick stats for target frequency for next available timer
  * 
  * @param timer pointer to timer to store new timer
  * @param targetFreq target frequency to achieve
@@ -368,10 +358,34 @@ bool uhwtValidFrequency(uhwt_freq_t freq);
  * @param timerTicks pointer to timer ticks to store new value
  * 
  * @return if stats successfully set
- * 
- * @warning can modify timer pointer
  */
-bool uhwtGetStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks);
+bool uhwtGetStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
+		uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks);
+
+/**
+ * Gets pre scalar and timer tick stats for target frequency for closest available timer
+ * 
+ * @param timer pointer to timer to store new timer
+ * @param targetFreq target frequency to achieve
+ * @param scalar pointer to pre scalar to store new value
+ * @param timerTicks pointer to timer ticks to store new value
+ * 
+ * @return if stats successfully set
+ */
+bool uhwtGetClosestStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
+		uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks);
+
+/**
+ * Sets function to execute for timer ISR
+ * 
+ * @param timer timer to set
+ * @param function function to set
+ * @param params params to set
+ * 
+ * @return if successfully set
+ */
+bool uhwtSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
 #ifdef __cplusplus
 }

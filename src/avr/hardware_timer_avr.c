@@ -440,9 +440,6 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 	if (!uhwtGetStats(timer, *freq, &scalar, &timerTicks)) {
 		return false;
 	}
-	if (!uhwtGetStats(timer, *freq, &scalar, &timerTicks)) {
-		return false;
-	}
 	if (!uhwtValidPreScalar(*timer, scalar) || !uhwtValidTimerTicks(*timer, timerTicks)) {
 		return false;
 	}
@@ -450,7 +447,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 
 	if (!uhwtTimerStarted(*timer)) {
 
-		setHardTimerFunction(*timer, function, params);
+		uhwtSetCallbackParams(*timer, function, params);
 
 		#if UHWT_TIMER_COUNT > 0
 			if (*timer == UHWT_TIMER0) {

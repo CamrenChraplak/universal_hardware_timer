@@ -301,7 +301,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 
 		timer_ptr_t timerPtr = getTimer(*timer);
 
-		setHardTimerFunction(*timer, function, params);
+		uhwtSetCallbackParams(*timer, function, params);
 		
 		#if ESP_IDF_VERSION_MAJOR == 4
 			// init timer
