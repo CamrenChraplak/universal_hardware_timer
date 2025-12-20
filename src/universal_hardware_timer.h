@@ -387,6 +387,14 @@ bool uhwtGetClosestStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
 bool uhwtSetCallbackParams(uhwt_timer_t timer,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
+/**
+ * Sets function execution priority
+ * 
+ * @param timer timer to set
+ * @param priority value to set
+ */
+void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
+
 #ifdef __cplusplus
 }
 #endif

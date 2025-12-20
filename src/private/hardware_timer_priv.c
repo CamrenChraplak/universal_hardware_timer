@@ -129,6 +129,9 @@ bool uhwtSetCallbackParams(uhwt_timer_t timer,
 	if (timer == UHWT_TIMER_INVALID) {
 		return false;
 	}
+	if (!uhwtPlatformSetCallbackParams(timer, function, params)) {
+		return false;
+	}
 	hardTimerFunctions[timer] = function;
 	hardTimerParams[timer] = params;
 
@@ -192,7 +195,7 @@ bool uhwtSetCallbackParams(uhwt_timer_t timer,
 	return true;
 }
 
-uhwt_platform_callback_ptr_t getHardTimerCallback(uhwt_timer_t timer) {
+uhwt_platform_callback_ptr_t uhwtGetCallback(uhwt_timer_t timer) {
 	#ifndef UHWT_NO_CALLBACK_SUPPORT
 		if (timer == UHWT_TIMER_INVALID) {
 			return NULL;
@@ -221,6 +224,10 @@ typedef struct {
 
 // stores status of all hardware timers
 uhwt_stat_s uhwtStats;
+
+#ifdef UHWT_PRIORITY_SUPPORT
+	uhwt_priority_t uhwtPriorities[UHWT_TIMER_COUNT]; // priorities of timer execution
+#endif
 
 bool uhwtTimerClaimed(uhwt_timer_t timer) {
 	if (timer == UHWT_TIMER_INVALID) {
@@ -496,6 +503,10 @@ bool uhwtValidFrequency(uhwt_freq_t freq) {
 	return true;
 }
 
+#ifndef UHWT_PRIORITY_SUPPORT
+	void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority) {}
+#endif
+
 uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) __attribute__((weak));
 uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
 	return UHWT_TIMER_INVALID;
@@ -514,5 +525,12 @@ bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
 	if (ticks == 0) {
 		return false;
 	}
+	return true;
+}
+
+bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params) __attribute__((weak));
+bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params) {
 	return true;
 }

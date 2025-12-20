@@ -65,6 +65,7 @@
 	#else
 		#error "Must use esp-idf version 4.X.X - 5.X.X"
 	#endif
+	#define UHWT_PRIORITY_SUPPORT // hardware timer allows setting execution priority
 #elif UHWT_SUPPORT_PICO
 	#include <pico.h>
 	#include <pico/time.h>
@@ -86,7 +87,7 @@ extern "C" {
  * 
  * @return pointer to callback function
  */
-uhwt_platform_callback_ptr_t getHardTimerCallback(uhwt_timer_t timer);
+uhwt_platform_callback_ptr_t uhwtGetCallback(uhwt_timer_t timer);
 
 /**
  * Sets timer as started
@@ -175,6 +176,18 @@ uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar);
  */
 uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks);
 
+/**
+ * Sets function to execute for timer ISR
+ * 
+ * @param timer timer to set
+ * @param function function to set
+ * @param params params to set
+ * 
+ * @return if successfully set
+ */
+bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
+
 #ifdef __cplusplus
 }
 #endif
@@ -182,6 +195,10 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks);
 #ifdef UHWT_NO_CALLBACK_SUPPORT
 	extern uhwt_function_ptr_t hardTimerFunctions[UHWT_TIMER_COUNT];
 	extern uhwt_params_ptr_t hardTimerParams[UHWT_TIMER_COUNT];
+#endif
+
+#ifdef UHWT_PRIORITY_SUPPORT
+	extern uhwt_priority_t uhwtPriorities[UHWT_TIMER_COUNT]; // priorities of timer execution
 #endif
 
 #endif

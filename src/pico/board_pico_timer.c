@@ -133,7 +133,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 
 		uhwtSetCallbackParams(*timer, function, params);
 
-		if (add_repeating_timer_us(-timerTicks, getHardTimerCallback(*timer), NULL, timerPtr)) {
+		if (add_repeating_timer_us(-timerTicks, uhwtGetCallback(*timer), NULL, timerPtr)) {
 			uhwtStartTimer(*timer);
 			return true;
 		}

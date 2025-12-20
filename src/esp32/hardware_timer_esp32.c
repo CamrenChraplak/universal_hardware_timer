@@ -113,9 +113,28 @@ typedef gptimer_handle_t** timer_ptr_t;
 
 // gptimer requires this as minimum freq
 #define HARD_TIMER_FREQ_MIN ((APB_CLK_FREQ / SCALAR_MAX) + 1)
-//#define HARD_TIMER_FREQ_MIN 1221
 
 #endif
+
+/**
+ * Gets timer based on desired timer
+ * 
+ * @param timer timer to select
+ * 
+ * @return pointer to timer selected
+ */
+timer_ptr_t getTimer(uhwt_timer_t timer);
+
+/**
+ * Scales input priority
+ * 
+ * @param priority of type uhwt_priority_t
+ * 
+ * @note function can only run up to priority 'ESP_INTR_FLAG_LEVEL3' since functions are in c
+ * 
+ * @return priority flag for 'intr_alloc_flags' when calling 'timer_isr_callback_add'
+ */
+int setPriority(uhwt_priority_t priority);
 
 /****************************
  * Platform Functions
@@ -198,19 +217,48 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 	return APB_CLK_FREQ / (targetFreq * ticks);
 }
 
+void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority) {
+	if (timer != UHWT_TIMER_INVALID) {
+		uhwtPriorities[timer] = priority;
+	}
+}
+
+bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params) {
+
+	if (timer != UHWT_TIMER_INVALID) {
+		timer_ptr_t timerPtr = getTimer(timer);
+	
+		#if ESP_IDF_VERSION_MAJOR == 4
+			if (timer_isr_callback_add((*timerPtr) -> group, (*timerPtr) -> num,
+					uhwtGetCallback(timer), params,
+					setPriority(uhwtPriorities[timer])) != ESP_OK) {
+				return false;
+			}
+		#elif ESP_IDF_VERSION_MAJOR == 5
+			
+			// callback config
+			gptimer_event_callbacks_t configCallback = {
+				.on_alarm = uhwtGetCallback(timer),
+			};
+
+			if (gptimer_register_event_callbacks(**timerPtr, &configCallback,
+					params) != ESP_OK) {
+				return false;
+			}
+			
+		#endif
+
+		return true;
+	}
+
+	return false;
+}
+
 /****************************
  * Timer Functions
 ****************************/
 
-/**
- * Scales input priority
- * 
- * @param priority of type uhwt_priority_t
- * 
- * @note function can only run up to priority 'ESP_INTR_FLAG_LEVEL3' since functions are in c
- * 
- * @return priority flag for 'intr_alloc_flags' when calling 'timer_isr_callback_add'
- */
 int setPriority(uhwt_priority_t priority) {
 	#ifdef PLATFORMIO
 		// use input priority for PlatformIO
@@ -228,13 +276,6 @@ int setPriority(uhwt_priority_t priority) {
 	#endif
 }
 
-/**
- * Gets timer based on desired timer
- * 
- * @param timer timer to select
- * 
- * @return pointer to timer selected
- */
 timer_ptr_t getTimer(uhwt_timer_t timer) {
 
 	if (timer == UHWT_TIMER_INVALID) {
@@ -300,8 +341,6 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 	if (!uhwtTimerStarted(*timer)) {
 
 		timer_ptr_t timerPtr = getTimer(*timer);
-
-		uhwtSetCallbackParams(*timer, function, params);
 		
 		#if ESP_IDF_VERSION_MAJOR == 4
 			// init timer
@@ -316,8 +355,8 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 			
 			timer_init((*timerPtr) -> group, (*timerPtr) -> num, &config);
 			timer_set_counter_value((*timerPtr) -> group, (*timerPtr) -> num, TIMER_COUNT_ZERO);
-			timer_start((*timerPtr) -> group, (*timerPtr) -> num);
-			timer_isr_callback_add((*timerPtr) -> group, (*timerPtr) -> num, getHardTimerCallback(*timer), params, setPriority(priority));
+			uhwtSetPriority(*timer, priority);
+			uhwtSetCallbackParams(*timer, function, params);
 
 			// run timer
 			timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks);
@@ -355,17 +394,13 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 				.flags.auto_reload_on_alarm = true,
 			};
 
-			// callback config
-			gptimer_event_callbacks_t configCallback = {
-				.on_alarm = getHardTimerCallback(*timer),
-			};
-
 			// creates new timer
 			gptimer_new_timer(&config, *timerPtr);
 
 			// sets up callback function
 			gptimer_set_alarm_action(**timerPtr, &configAlarm);
-			gptimer_register_event_callbacks(**timerPtr, &configCallback, params);
+			uhwtSetPriority(*timer, priority);
+			uhwtSetCallbackParams(*timer, function, params);
 
 			// starts timer
 			gptimer_enable(**timerPtr);
