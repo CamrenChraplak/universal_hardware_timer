@@ -31,6 +31,7 @@
 
 // hardware timers
 struct repeating_timer timers[UHWT_TIMER_COUNT];
+uhwt_timertick_t picoTicks[UHWT_TIMER_COUNT];
 
 /**
  * Gets timer based on desired timer
@@ -90,6 +91,11 @@ bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
 	return false;
 }
 
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	picoTicks[timer] = timerTicks;
+	return true;
+}
+
 /****************************
  * Timer Functions
 ****************************/
@@ -132,8 +138,9 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 		struct repeating_timer* timerPtr = getTimer(*timer);
 
 		uhwtSetCallbackParams(*timer, function, params);
+		uhwtSetStats(*timer, scalar, timerTicks);
 
-		if (add_repeating_timer_us(-timerTicks, uhwtGetCallback(*timer), NULL, timerPtr)) {
+		if (add_repeating_timer_us(-picoTicks[*timer], uhwtGetCallback(*timer), NULL, timerPtr)) {
 			uhwtStartTimer(*timer);
 			return true;
 		}

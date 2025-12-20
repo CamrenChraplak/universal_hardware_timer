@@ -503,6 +503,13 @@ bool uhwtValidFrequency(uhwt_freq_t freq) {
 	return true;
 }
 
+bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	if (!uhwtTimerStarted(timer) && timer != UHWT_TIMER_INVALID) {
+		return uhwtPlatformSetStats(timer, scalar, timerTicks);
+	}
+	return false;
+}
+
 #ifndef UHWT_PRIORITY_SUPPORT
 	void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority) {}
 #endif

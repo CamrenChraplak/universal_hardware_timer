@@ -395,6 +395,17 @@ bool uhwtSetCallbackParams(uhwt_timer_t timer,
  */
 void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
 
+/**
+ * Sets timer stats for frequency
+ * 
+ * @param timer timer to set
+ * @param scalar scalar to set
+ * @param timerTicks ticks to set
+ * 
+ * @return if successful
+ */
+bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks);
+
 #ifdef __cplusplus
 }
 #endif

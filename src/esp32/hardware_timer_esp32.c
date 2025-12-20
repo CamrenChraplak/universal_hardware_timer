@@ -255,6 +255,15 @@ bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
 	return false;
 }
 
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	#if ESP_IDF_VERSION_MAJOR == 4
+		timer_ptr_t timerPtr = getTimer(timer);
+		timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks);
+		timer_set_divider((*timerPtr) -> group, (*timerPtr) -> num, scalar);
+	#endif
+	return true;
+}
+
 /****************************
  * Timer Functions
 ****************************/
@@ -345,7 +354,7 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 		#if ESP_IDF_VERSION_MAJOR == 4
 			// init timer
 			timer_config_t config = {
-				.divider = scalar,
+				.divider = 2,
 				.counter_dir = true,
 				.counter_en = TIMER_PAUSE,
 				.alarm_en = TIMER_ALARM_DIS,
@@ -357,9 +366,9 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 			timer_set_counter_value((*timerPtr) -> group, (*timerPtr) -> num, TIMER_COUNT_ZERO);
 			uhwtSetPriority(*timer, priority);
 			uhwtSetCallbackParams(*timer, function, params);
+			uhwtSetStats(*timer, scalar, timerTicks);
 
 			// run timer
-			timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks);
 			timer_set_auto_reload((*timerPtr) -> group, (*timerPtr) -> num, true);
 			timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, true);
 			timer_start((*timerPtr) -> group, (*timerPtr) -> num);

@@ -158,6 +158,44 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 	return F_CPU / (targetFreq * (ticks + 1));
 }
 
+/**
+ * Sets timer stats
+ * 
+ * @param num timer number
+ * @param scalar scalar to set
+ * @param timerTicks ticks to set
+ */
+#define SET_STATS(num, scalar, timerTicks) \
+	cli(); \
+	HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET) = timerTicks; \
+	HARD_TIMER_CONCATENATE3(TIMER_, num, _SET_SCALAR)(scalar); \
+	sei()
+
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				SET_STATS(0, scalar, timerTicks);
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				SET_STATS(1, scalar, timerTicks);
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				SET_STATS(2, scalar, timerTicks);
+			break;
+		#endif
+		default:
+			return false;
+		break;
+	}
+	return true;
+}
+
 /****************************
  * Timer Functions
 ****************************/
@@ -174,58 +212,104 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 
 bool cancelHardTimer(uhwt_timer_t timer) {
 
-	if (uhwtTimerStarted(timer)) {
-		#if UHWT_TIMER_COUNT > 0
-			if (timer == UHWT_TIMER0) {
-				#if SKIP_TIMER_INDEX != 0
-					CANCEL_HARD_TIMER(0);
-				#else
-					CANCEL_HARD_TIMER(1);
-				#endif
-			}
-		#endif
-		#if UHWT_TIMER_COUNT > 1
-			else if (timer == UHWT_TIMER1) {
-				#if SKIP_TIMER_INDEX < 1
-					CANCEL_HARD_TIMER(2);
-				#else
-					CANCEL_HARD_TIMER(1);
-				#endif
-			}
-		#endif
-		#if UHWT_TIMER_COUNT > 2
-			else if (timer == UHWT_TIMER2) {
-				#if SKIP_TIMER_INDEX < 2
-					CANCEL_HARD_TIMER(3);
-				#else
-					CANCEL_HARD_TIMER(2);
-				#endif
-			}
-		#endif
-		uhwtStopTimer(timer);
-		return true;
+	if (!uhwtTimerStarted(timer)) {
+		return false;
 	}
 
-	return false;
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				CANCEL_HARD_TIMER(0);
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				CANCEL_HARD_TIMER(1);
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				CANCEL_HARD_TIMER(2);
+			break;
+		#endif
+		default:
+			return false;
+		break;
+	}
+	uhwtStopTimer(timer);
+	return true;
 }
 
 /**
- * Sets hard timer
+ * Inits hardware timer
  * 
- * @param num timer number
- * @param scalar scalar to set
- * @param timerTicks ticks to set
+ * @param num timer id
  */
-#define SET_HARD_TIMER(num, scalar, timerTicks) \
+#define INIT_HARD_TIMER(num) \
 	cli(); \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _COMP) = 0; \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _WAVEFORM) = 0; \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _COUNTER) = 0; \
-	HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET) = timerTicks; \
+	sei()
+
+bool initHardTimer(uhwt_timer_t timer) {
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				INIT_HARD_TIMER(0);
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				INIT_HARD_TIMER(1);
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				INIT_HARD_TIMER(2);
+			break;
+		#endif
+		default:
+			return false;
+		break;
+	}
+	return true;
+}
+
+/**
+ * Starts hardware timer
+ * 
+ * @param num timer id
+ */
+#define START_HARD_TIMER(num) \
+	cli(); \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _INCR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INCREM_ENABLE); \
-	HARD_TIMER_CONCATENATE3(TIMER_, num, _SET_SCALAR)(scalar); \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR_ENABLE); \
 	sei()
+
+bool startHardTimer(uhwt_timer_t timer) {
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				START_HARD_TIMER(0);
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				START_HARD_TIMER(1);
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				START_HARD_TIMER(2);
+			break;
+		#endif
+		default:
+			return false;
+		break;
+	}
+	return true;
+}
 
 bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
 
@@ -251,33 +335,9 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t fu
 
 		uhwtSetCallbackParams(*timer, function, params);
 
-		#if UHWT_TIMER_COUNT > 0
-			if (*timer == UHWT_TIMER0) {
-				#if SKIP_TIMER_INDEX != 0
-					SET_HARD_TIMER(0, scalar, timerTicks);
-				#else
-					SET_HARD_TIMER(1, scalar, timerTicks);
-				#endif
-			}
-		#endif
-		#if UHWT_TIMER_COUNT > 1
-			else if (*timer == UHWT_TIMER1) {
-				#if SKIP_TIMER_INDEX < 1
-					SET_HARD_TIMER(2, scalar, timerTicks);
-				#else
-					SET_HARD_TIMER(1, scalar, timerTicks);
-				#endif
-			}
-		#endif
-		#if UHWT_TIMER_COUNT > 2
-			else if (*timer == UHWT_TIMER2) {
-				#if SKIP_TIMER_INDEX < 2
-					SET_HARD_TIMER(3, scalar, timerTicks);
-				#else
-					SET_HARD_TIMER(2, scalar, timerTicks);
-				#endif
-			}
-		#endif
+		initHardTimer(*timer);
+		uhwtPlatformSetStats(*timer, scalar, timerTicks);
+		startHardTimer(*timer);
 
 		uhwtStartTimer(*timer);
 		return true;

@@ -188,6 +188,18 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks);
 bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
+/**
+ * Sets timer stats for frequency
+ * 
+ * @param timer timer to set
+ * @param scalar scalar to set
+ * @param timerTicks ticks to set
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar,
+		uhwt_timertick_t timerTicks);
+
 #ifdef __cplusplus
 }
 #endif
