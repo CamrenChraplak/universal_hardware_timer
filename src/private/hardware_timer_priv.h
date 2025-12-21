@@ -218,6 +218,60 @@ bool uhwtPlatformStopTimer(uhwt_timer_t timer);
  */
 bool uhwtPlatformStartTimer(uhwt_timer_t timer);
 
+/**
+ * Initializes timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformInitTimer(uhwt_timer_t timer);
+
+/**
+ * Deconstruct timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformDeconstructTimer(uhwt_timer_t timer);
+
+/**
+ * Sets timer as initialized
+ * 
+ * @param timer timer id
+ * 
+ * @return if timer was initialized
+ */
+bool uhwtSetTimerInitialized(uhwt_timer_t timer);
+
+/**
+ * Sets timer as deconstructed
+ * 
+ * @param timer timer id
+ * 
+ * @return if timer was deconstructed
+ */
+bool uhwtSetTimerDeconstructed(uhwt_timer_t timer);
+
+/**
+ * Gets prescalar for given timer
+ * 
+ * @param timer timer id for retrieval
+ * 
+ * @return prescalar
+ */
+uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer);
+
+/**
+ * Gets timer ticks for given timer
+ * 
+ * @param timer timer id for retrieval
+ * 
+ * @return timer ticks
+ */
+uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer);
+
 #ifdef __cplusplus
 }
 #endif

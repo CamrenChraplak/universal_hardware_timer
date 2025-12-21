@@ -20,7 +20,6 @@
 
 #if UHWT_TIMER_COUNT > 0 && UHWT_SUPPORT_AVR
 
-#include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/pgmspace.h>
 
@@ -110,7 +109,27 @@ bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
 	if (ticks == 0) {
 		return false;
 	}
-	if (ticks > UINT8_MAX && timer != TIMER_1_ALIAS) {
+	uhwt_timertick_t maxValue = 0;
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				maxValue = TIMER_0_MAX_TICKS;
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				maxValue = TIMER_1_MAX_TICKS;
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				maxValue = TIMER_2_MAX_TICKS;
+			break;
+		#endif
+		default:
+		break;
+	}
+	if (ticks >= maxValue) {
 		return false;
 	}
 	return true;
@@ -166,7 +185,7 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 #define UHWT_SET_STATS(num, scalar, timerTicks) \
 	cli(); \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET) = timerTicks; \
-	HARD_TIMER_CONCATENATE3(TIMER_, num, _SET_SCALAR)(scalar); \
+	HARD_TIMER_CONCATENATE3(uhwtTimer, num, SetScalar)(scalar); \
 	sei()
 
 bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
@@ -206,7 +225,7 @@ bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_time
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _COUNTER) = 0; \
 	sei()
 
-bool uhwtInitTimer(uhwt_timer_t timer) {
+bool uhwtPlatformInitTimer(uhwt_timer_t timer) {
 	switch(timer) {
 		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
 			case(TIMER_0_ALIAS):
@@ -227,6 +246,10 @@ bool uhwtInitTimer(uhwt_timer_t timer) {
 			return false;
 		break;
 	}
+	return true;
+}
+
+bool uhwtPlatformDeconstructTimer(uhwt_timer_t timer) {
 	return true;
 }
 
@@ -297,6 +320,59 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 		break;
 	}
 	return true;
+}
+
+uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer) {
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				return uhwtTimer0GetScalar();
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				return uhwtTimer1GetScalar();
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				return uhwtTimer2GetScalar();
+			break;
+		#endif
+		default:
+			return 0;
+		break;
+	}
+}
+
+/**
+ * Gets timer ticks for timer
+ * 
+ * @param num timer id
+ */
+#define UHWT_GET_TICKS(num) ((0xffff) >> (16 - HARD_TIMER_CONCATENATE3(TIMER_, num, _MAX_TICK_BITS))) & HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET)
+
+uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer) {
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				return UHWT_GET_TICKS(0);
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				return UHWT_GET_TICKS(1);
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				return UHWT_GET_TICKS(2);
+			break;
+		#endif
+		default:
+			return false;
+		break;
+	}
 }
 
 #endif

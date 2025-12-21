@@ -96,7 +96,11 @@ bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_time
 	return true;
 }
 
-bool uhwtInitTimer(uhwt_timer_t timer) {
+bool uhwtPlatformInitTimer(uhwt_timer_t timer) {
+	return true;
+}
+
+bool uhwtPlatformDeconstructTimer(uhwt_timer_t timer) {
 	return true;
 }
 
@@ -114,6 +118,14 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 		return false;
 	}
 	return true;
+}
+
+uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer) {
+	return 1;
+}
+
+uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer) {
+	return picoTicks[timer];
 }
 
 #endif

@@ -57,11 +57,31 @@ bool uhwtStopTimer(uhwt_timer_t timer) {
 }
 
 bool uhwtStartTimer(uhwt_timer_t timer) {
-	if (uhwtTimerStarted(timer)) {
+	if (uhwtTimerStarted(timer) && uhwtValidTimer(timer)) {
 		return false;
 	}
 	if (uhwtPlatformStartTimer(timer)) {
 		return uhwtSetTimerStarted(timer);
+	}
+	return false;
+}
+
+bool uhwtInitTimer(uhwt_timer_t timer) {
+	if (uhwtTimerInitialized(timer) && uhwtValidTimer(timer)) {
+		return false;
+	}
+	if (uhwtPlatformInitTimer(timer)) {
+		return uhwtSetTimerInitialized(timer);
+	}
+	return false;
+}
+
+bool uhwtDeconstructTimer(uhwt_timer_t timer) {
+	if (!uhwtTimerInitialized(timer)) {
+		return false;
+	}
+	if (uhwtPlatformDeconstructTimer(timer)) {
+		return uhwtSetTimerDeconstructed(timer);
 	}
 	return false;
 }
@@ -79,49 +99,94 @@ uhwt_timer_t uwhtGetNextTimerStats(uhwt_claim_s claimArgs) {
 
 	uhwt_timer_t timer = uwhtPlatformGetNextTimerStats(claimArgs);
 
-	if (timer == UHWT_TIMER_INVALID) {
+	if (!uhwtValidTimer(timer)) {
 		return uwhtGetNextTimer();
 	}
 
 	return timer;
 }
 
-// TODO: remove
-
-bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
-	
-	if (function == NULL || freq == NULL || timer == NULL) {
+/**
+ * Sets up hardware timer
+ * 
+ * @param timer pointer to timer to store
+ * @param targetFreq frequency to achieve
+ * @param function pointer to function to call back
+ * @param params parameters to pass to callback function
+ * @param simpleStats if using simple or not get stats
+ * 
+ * @return if successful
+ */
+bool uhwtSetup(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, bool simpleStats) {
+	if (function == NULL || timer == NULL) {
 		return false;
 	}
-	if (*freq == (uhwt_freq_t)0 || *freq > UHWT_TIMER_FREQ_MAX) {
+	if (targetFreq == (uhwt_freq_t)0 || targetFreq > UHWT_TIMER_FREQ_MAX) {
 		return false;
 	}
 
 	uhwt_prescalar_t scalar;
 	uhwt_timertick_t timerTicks;
 
-	if (!uhwtGetStats(timer, *freq, &scalar, &timerTicks)) {
-		return false;
+	if (simpleStats) {
+		if (!uhwtGetStats(timer, targetFreq, &scalar, &timerTicks)) {
+			return false;
+		}
 	}
+	else {
+		if (!uhwtGetClosestStats(timer, targetFreq, &scalar, &timerTicks)) {
+			return false;
+		}
+	}
+
 	if (!uhwtValidPreScalar(*timer, scalar) || !uhwtValidTimerTicks(*timer, timerTicks)) {
 		return false;
 	}
 	
 	if (!uhwtTimerStarted(*timer)) {
-		*freq = uhwtCalcFreq(scalar, timerTicks);
 		uhwtInitTimer(*timer);
-		uhwtSetPriority(*timer, priority);
 		uhwtSetCallbackParams(*timer, function, params);
 		uhwtSetStats(*timer, scalar, timerTicks);
-		uhwtStartTimer(*timer);
 		return true;
 	}
 
 	return false;
 }
 
+bool uhwtSetupTimer(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_function_ptr_t function, uhwt_params_ptr_t params) {
+	return uhwtSetup(timer, targetFreq, function, params, true);
+}
+
+bool uhwtSetupComplexTimer(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
+	if (uhwtSetup(timer, targetFreq, function, params, false)) {
+		uhwtSetPriority(*timer, priority);
+		return true;
+	}
+	return false;
+}
+
+// TODO: remove
+// TODO: Uno time off
+
+bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
+
+	if (freq == NULL) {
+		return false;
+	}
+	//if (!uhwtSetupTimer(timer, *freq, function, params)) {
+	if (!uhwtSetupComplexTimer(timer, *freq, function, params, priority)) {
+		return false;
+	}
+	// *freq = uhwtCalcFreq(uhwtGetPreScalar(*timer), uhwtGetTimerTicks(*timer));
+	return uhwtStartTimer(*timer);
+	
+}
+
 // TODO: remove
 
 bool cancelHardTimer(uhwt_timer_t timer) {
-	return uhwtStopTimer(timer);
+	if (uhwtStopTimer(timer)) {
+		return uhwtDeconstructTimer(timer);
+	}
+	return false;
 }

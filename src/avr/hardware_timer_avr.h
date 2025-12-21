@@ -17,6 +17,13 @@
 */
 
 /**
+ * F_DER = desired frequency (Hz)
+ * 
+ * timerTicks = [F_CPU / (scalar * F_DER)] - 1
+ * F_DER = F_CPU / [scalar * (timerTicks + 1)]
+ */
+
+/**
  * Arduino functionality that uses hardware timers
  * 
  * wiring.c
@@ -34,11 +41,20 @@
 
 #if UHWT_SUPPORT_AVR
 
-#if F_CPU == 16000000L
+#include <avr/io.h>
+
+/*#if F_CPU == 16000000L
 	#define FREQ_MIN_8_COUNTER 62 // min frequency for 8 bit counter
 #else
 	#error "Frequency not supported"
-#endif
+#endif*/
+
+// 1024 max scalar, 255 max ticks
+// 61.035Hz for 16MHz
+#define FREQ_MIN_8_COUNTER ((F_CPU) / (1024 * (255 + 1)) + 1) // min frequency for 8 bit counter
+// 1024 max scalar, 65535 max ticks
+// 0.238Hz for 16MHz
+#define FREQ_MIN_16_COUNTER ((F_CPU) / (1024 * (65535 + 1)) + 1) // min frequency for 16 bit counter
 
 #if defined(__AVR_ATmega328P__)
 	#include "hardware_timer_avr_atmega328p.h"
@@ -67,37 +83,35 @@ typedef enum {
 
 #if TIMER_COUNT > 0
 	#if SKIP_TIMER_INDEX == 0
-		#define TIMER_0_ALIAS UHWT_TIMER_INVALID_LIT
+		#define TIMER_0_ALIAS UHWT_TIMER_INVALID_LIT // real timer 0
 	#else
-		#define TIMER_0_ALIAS UHWT_TIMER0
+		#define TIMER_0_ALIAS UHWT_TIMER0 // real timer 0
 	#endif
 #else
-	#define TIMER_0_ALIAS UHWT_TIMER_INVALID_LIT
+	#define TIMER_0_ALIAS UHWT_TIMER_INVALID_LIT // real timer 0
 #endif
 #if TIMER_COUNT > 1
 	#if SKIP_TIMER_INDEX == 1
-		#define TIMER_1_ALIAS UHWT_TIMER_INVALID_LIT
+		#define TIMER_1_ALIAS UHWT_TIMER_INVALID_LIT // real timer 1
 	#elif SKIP_TIMER_INDEX < 1
-		#define TIMER_1_ALIAS UHWT_TIMER0
+		#define TIMER_1_ALIAS UHWT_TIMER0 // real timer 1
 	#else
-		#define TIMER_1_ALIAS UHWT_TIMER1
+		#define TIMER_1_ALIAS UHWT_TIMER1 // real timer 1
 	#endif
 #else
-	#define TIMER_1_ALIAS UHWT_TIMER_INVALID_LIT
+	#define TIMER_1_ALIAS UHWT_TIMER_INVALID_LIT // real timer 1
 #endif
 #if TIMER_COUNT > 2
 	#if SKIP_TIMER_INDEX == 2
-		#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT
+		#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT // real timer 2
 	#elif SKIP_TIMER_INDEX < 2
-		#define TIMER_2_ALIAS UHWT_TIMER1
+		#define TIMER_2_ALIAS UHWT_TIMER1 // real timer 2
 	#else
-		#define TIMER_2_ALIAS UHWT_TIMER2
+		#define TIMER_2_ALIAS UHWT_TIMER2 // real timer 2
 	#endif
 #else
-	#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT
+	#define TIMER_2_ALIAS UHWT_TIMER_INVALID_LIT // real timer 2
 #endif
-
-#define SCALAR_MASK_SIZE (sizeof(scalarMask) / sizeof(uhwt_prescalar_t)) // size of scalarMask
 
 /****************************
  * Timer 0
@@ -120,18 +134,53 @@ typedef enum {
 /**
  * sets scalar for timer 0
  * 
- * @param scalar prescalar_enum_t type for scalar value
+ * @param scalar prescalar value
+ * 
+ * @note SCALAR_1:    001
+ * @note SCALAR_8:    010
+ * @note SCALAR_64:   011
+ * @note SCALAR_256:  100
+ * @note SCALAR_1024: 101
  */
-#define TIMER_0_SET_SCALAR(scalar) \
-	if (scalar == SCALAR_1 || scalar == SCALAR_64 || scalar == SCALAR_1024) { \
-		TIMER_0_SCAL |= (1 << CS00); \
-	} \
-	if (scalar == SCALAR_8 || scalar == SCALAR_64) { \
-		TIMER_0_SCAL |= (1 << CS01); \
-	} \
-	if (scalar == SCALAR_256 || scalar == SCALAR_1024) { \
-		TIMER_0_SCAL |= (1 << CS02); \
+static inline void uhwtTimer0SetScalar(uhwt_prescalar_t scalar) {
+	if (scalar == SCALAR_1 || scalar == SCALAR_64 || scalar == SCALAR_1024) {
+		TIMER_0_SCAL |= (1 << CS00);
 	}
+	if (scalar == SCALAR_8 || scalar == SCALAR_64) {
+		TIMER_0_SCAL |= (1 << CS01);
+	}
+	if (scalar == SCALAR_256 || scalar == SCALAR_1024) {
+		TIMER_0_SCAL |= (1 << CS02);
+	}
+}
+
+/**
+ * Gets pre scalar for timer 0
+ * 
+ * @return pre scalar value
+ */
+static inline uhwt_prescalar_t uhwtTimer0GetScalar() {
+	switch(TIMER_0_SCAL & TIMER_0_SCALAR_ENABLE) {
+		case((1 << CS00)):
+			return SCALAR_1;
+		break;
+		case((1 << CS01)):
+			return SCALAR_8;
+		break;
+		case((1 << CS00) | (1 << CS01)):
+			return SCALAR_64;
+		break;
+		case((1 << CS02)):
+			return SCALAR_256;
+		break;
+		case((1 << CS00) | (1 << CS02)):
+			return SCALAR_1024;
+		break;
+		default:
+			return 0;
+		break;
+	}
+}
 
 #endif
 
@@ -156,18 +205,53 @@ typedef enum {
 /**
  * sets scalar for timer 1
  * 
- * @param scalar prescalar_enum_t type for scalar value
+ * @param scalar prescalar value
+ * 
+ * @note SCALAR_1:    001
+ * @note SCALAR_8:    010
+ * @note SCALAR_64:   011
+ * @note SCALAR_256:  100
+ * @note SCALAR_1024: 101
  */
-#define TIMER_1_SET_SCALAR(scalar) \
-	if (scalar == SCALAR_1 || scalar == SCALAR_64 || scalar == SCALAR_1024) { \
-		TIMER_1_SCAL |= (1 << CS10); \
-	} \
-	if (scalar == SCALAR_8 || scalar == SCALAR_64) { \
-		TIMER_1_SCAL |= (1 << CS11); \
-	} \
-	if (scalar == SCALAR_256 || scalar == SCALAR_1024) { \
-		TIMER_1_SCAL |= (1 << CS12); \
+static inline void uhwtTimer1SetScalar(uhwt_prescalar_t scalar) {
+	if (scalar == SCALAR_1 || scalar == SCALAR_64 || scalar == SCALAR_1024) {
+		TIMER_1_SCAL |= (1 << CS10);
 	}
+	if (scalar == SCALAR_8 || scalar == SCALAR_64) {
+		TIMER_1_SCAL |= (1 << CS11);
+	}
+	if (scalar == SCALAR_256 || scalar == SCALAR_1024) {
+		TIMER_1_SCAL |= (1 << CS12);
+	}
+}
+
+/**
+ * Gets pre scalar for timer 1
+ * 
+ * @return pre scalar value
+ */
+static inline uhwt_prescalar_t uhwtTimer1GetScalar() {
+	switch(TIMER_1_SCAL & TIMER_1_SCALAR_ENABLE) {
+		case((1 << CS10)):
+			return SCALAR_1;
+		break;
+		case((1 << CS11)):
+			return SCALAR_8;
+		break;
+		case((1 << CS10) | (1 << CS11)):
+			return SCALAR_64;
+		break;
+		case((1 << CS12)):
+			return SCALAR_256;
+		break;
+		case((1 << CS10) | (1 << CS12)):
+			return SCALAR_1024;
+		break;
+		default:
+			return 0;
+		break;
+	}
+}
 
 #endif
 
@@ -192,18 +276,61 @@ typedef enum {
 /**
  * sets scalar for timer 2
  * 
- * @param scalar prescalar_enum_t type for scalar value
+ * @param scalar prescalar value
+ * 
+ * @note SCALAR_1:    001
+ * @note SCALAR_8:    010
+ * @note SCALAR_32:   011
+ * @note SCALAR_64:   100
+ * @note SCALAR_128:  101
+ * @note SCALAR_256:  110
+ * @note SCALAR_1024: 111
  */
-#define TIMER_2_SET_SCALAR(scalar) \
-	if (scalar == SCALAR_1 || scalar == SCALAR_32 || scalar == SCALAR_128 || scalar == SCALAR_1024) { \
-		TIMER_2_SCAL |= (1 << CS20); \
-	} \
-	if (scalar == SCALAR_8 || scalar == SCALAR_32 || scalar == SCALAR_256 || scalar == SCALAR_1024) { \
-		TIMER_2_SCAL |= (1 << CS21); \
-	} \
-	if (scalar == SCALAR_64 || scalar == SCALAR_128 || scalar == SCALAR_256 || scalar == SCALAR_1024) { \
-		TIMER_2_SCAL |= (1 << CS22); \
+static inline void uhwtTimer2SetScalar(uhwt_prescalar_t scalar) {
+	if (scalar == SCALAR_1 || scalar == SCALAR_32 || scalar == SCALAR_128 || scalar == SCALAR_1024) {
+		TIMER_2_SCAL |= (1 << CS20);
 	}
+	if (scalar == SCALAR_8 || scalar == SCALAR_32 || scalar == SCALAR_256 || scalar == SCALAR_1024) {
+		TIMER_2_SCAL |= (1 << CS21);
+	}
+	if (scalar == SCALAR_64 || scalar == SCALAR_128 || scalar == SCALAR_256 || scalar == SCALAR_1024) {
+		TIMER_2_SCAL |= (1 << CS22);
+	}
+}
+
+/**
+ * Gets pre scalar for timer 2
+ * 
+ * @return pre scalar value
+ */
+static inline uhwt_prescalar_t uhwtTimer2GetScalar() {
+	switch(TIMER_2_SCAL & TIMER_2_SCALAR_ENABLE) {
+		case((1 << CS20)):
+			return SCALAR_1;
+		break;
+		case((1 << CS21)):
+			return SCALAR_8;
+		break;
+		case((1 << CS20) | (1 << CS21)):
+			return SCALAR_32;
+		break;
+		case((1 << CS22)):
+			return SCALAR_64;
+		break;
+		case((1 << CS20) | (1 << CS22)):
+			return SCALAR_128;
+		break;
+		case((1 << CS21) | (1 << CS22)):
+			return SCALAR_256;
+		break;
+		case((1 << CS20) | (1 << CS21) | (1 << CS22)):
+			return SCALAR_1024;
+		break;
+		default:
+			return 0;
+		break;
+	}
+}
 
 #endif
 

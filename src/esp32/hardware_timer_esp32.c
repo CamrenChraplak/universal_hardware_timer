@@ -119,6 +119,7 @@ typedef gptimer_handle_t** timer_ptr_t;
 
 // stores frequency calculations
 uhwt_freq_t storedFreq[UHWT_TIMER_COUNT];
+// stores timer tick set
 uhwt_timertick_t storedTicks[UHWT_TIMER_COUNT];
 
 #endif
@@ -132,7 +133,7 @@ uhwt_timertick_t storedTicks[UHWT_TIMER_COUNT];
  */
 timer_ptr_t getTimer(uhwt_timer_t timer) {
 
-	if (timer == UHWT_TIMER_INVALID) {
+	if (!uhwtValidTimer(timer)) {
 		return NULL;
 	}
 	return &timers[timer];
@@ -246,7 +247,7 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 }
 
 void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority) {
-	if (timer != UHWT_TIMER_INVALID) {
+	if (uhwtValidTimer(timer)) {
 		uhwtPriorities[timer] = priority;
 	}
 }
@@ -256,11 +257,9 @@ bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
 		
 	#if ESP_IDF_VERSION_MAJOR == 4
 		timer_ptr_t timerPtr = getTimer(timer);
-		if (timer_isr_callback_add((*timerPtr) -> group, (*timerPtr) -> num,
-				uhwtGetCallback(timer), params,
-				setPriority(uhwtPriorities[timer])) != ESP_OK) {
-			return false;
-		}
+		ESP_ERROR_CHECK(timer_isr_callback_add((*timerPtr) -> group,
+				(*timerPtr) -> num, uhwtGetCallback(timer), params,
+				setPriority(uhwtPriorities[timer])));
 
 	#endif
 
@@ -270,8 +269,8 @@ bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
 bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
 	#if ESP_IDF_VERSION_MAJOR == 4
 		timer_ptr_t timerPtr = getTimer(timer);
-		timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks);
-		timer_set_divider((*timerPtr) -> group, (*timerPtr) -> num, scalar);
+		ESP_ERROR_CHECK(timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks));
+		ESP_ERROR_CHECK(timer_set_divider((*timerPtr) -> group, (*timerPtr) -> num, scalar));
 	#elif ESP_IDF_VERSION_MAJOR == 5
 		uhwt_freq_t tempFreq = uhwtCalcFreq(scalar, timerTicks);
 		uhwt_timertick_t tempTicks = 1;
@@ -289,11 +288,11 @@ bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_time
 	return true;
 }
 
-bool uhwtInitTimer(uhwt_timer_t timer) {
-
-	timer_ptr_t timerPtr = getTimer(timer);
+bool uhwtPlatformInitTimer(uhwt_timer_t timer) {
 
 	#if ESP_IDF_VERSION_MAJOR == 4
+
+		timer_ptr_t timerPtr = getTimer(timer);
 
 		timer_config_t config = {
 			.divider = 2,
@@ -304,11 +303,29 @@ bool uhwtInitTimer(uhwt_timer_t timer) {
 		};
 		*timerPtr = &timerGroups[timer];
 		
-		timer_init((*timerPtr) -> group, (*timerPtr) -> num, &config);
-		timer_set_counter_value((*timerPtr) -> group, (*timerPtr) -> num, TIMER_COUNT_ZERO);
+		ESP_ERROR_CHECK(timer_init((*timerPtr) -> group, (*timerPtr) -> num, &config));
+		ESP_ERROR_CHECK(timer_set_counter_value((*timerPtr) -> group, (*timerPtr) -> num, TIMER_COUNT_ZERO));
 	
 	#elif ESP_IDF_VERSION_MAJOR == 5
 
+	#endif
+
+	return true;
+}
+
+bool uhwtPlatformDeconstructTimer(uhwt_timer_t timer) {
+
+	timer_ptr_t timerPtr = getTimer(timer);
+
+	#if ESP_IDF_VERSION_MAJOR == 4
+		ESP_ERROR_CHECK(timer_set_counter_value((*timerPtr) -> group, (*timerPtr) -> num, TIMER_COUNT_ZERO));
+		ESP_ERROR_CHECK(timer_isr_callback_remove((*timerPtr) -> group, (*timerPtr) -> num));
+		ESP_ERROR_CHECK(timer_deinit((*timerPtr) -> group, (*timerPtr) -> num));
+		*timerPtr = NULL;
+	#elif ESP_IDF_VERSION_MAJOR == 5
+		ESP_ERROR_CHECK(gptimer_disable(**timerPtr));
+		ESP_ERROR_CHECK(gptimer_del_timer(**timerPtr));
+		**timerPtr = NULL;
 	#endif
 
 	return true;
@@ -319,26 +336,10 @@ bool uhwtPlatformStopTimer(uhwt_timer_t timer) {
 	timer_ptr_t timerPtr = getTimer(timer);
 
 	#if ESP_IDF_VERSION_MAJOR == 4
-
-		// cancels timer
-		timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, false);
-		timer_pause((*timerPtr) -> group, (*timerPtr) -> num);
-		timer_set_counter_value((*timerPtr) -> group, (*timerPtr) -> num, TIMER_COUNT_ZERO);
-
-		// deconstructs timer
-		timer_isr_callback_remove((*timerPtr) -> group, (*timerPtr) -> num);
-		timer_deinit((*timerPtr) -> group, (*timerPtr) -> num);
-
-		*timerPtr = NULL;
-
+		ESP_ERROR_CHECK(timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, false));
+		ESP_ERROR_CHECK(timer_pause((*timerPtr) -> group, (*timerPtr) -> num));
 	#elif ESP_IDF_VERSION_MAJOR == 5
-
-		gptimer_stop(**timerPtr);
-		gptimer_disable(**timerPtr);
-		gptimer_del_timer(**timerPtr);
-
-		**timerPtr = NULL;
-
+		ESP_ERROR_CHECK(gptimer_stop(**timerPtr));
 	#endif
 
 	return true;
@@ -350,9 +351,9 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 	
 	#if ESP_IDF_VERSION_MAJOR == 4
 		// run timer
-		timer_set_auto_reload((*timerPtr) -> group, (*timerPtr) -> num, true);
-		timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, true);
-		timer_start((*timerPtr) -> group, (*timerPtr) -> num);
+		ESP_ERROR_CHECK(timer_set_auto_reload((*timerPtr) -> group, (*timerPtr) -> num, true));
+		ESP_ERROR_CHECK(timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, true));
+		ESP_ERROR_CHECK(timer_start((*timerPtr) -> group, (*timerPtr) -> num));
 	#elif ESP_IDF_VERSION_MAJOR == 5
 		// timer config
 		gptimer_config_t config = {
@@ -370,27 +371,49 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 		};
 
 		// creates new timer
-		gptimer_new_timer(&config, *timerPtr);
+		ESP_ERROR_CHECK(gptimer_new_timer(&config, *timerPtr));
 
 		// sets up callback function
-		gptimer_set_alarm_action(**timerPtr, &configAlarm);
+		ESP_ERROR_CHECK(gptimer_set_alarm_action(**timerPtr, &configAlarm));
 
 		// callback config
 		gptimer_event_callbacks_t configCallback = {
 			.on_alarm = uhwtGetCallback(timer),
 		};
 
-		if (gptimer_register_event_callbacks(**timerPtr, &configCallback,
-				NULL) != ESP_OK) {
-			return false;
-		}
+		ESP_ERROR_CHECK(gptimer_register_event_callbacks(**timerPtr,
+				&configCallback, NULL));
 
 		// starts timer
-		gptimer_enable(**timerPtr);
-		gptimer_start(**timerPtr);
+		ESP_ERROR_CHECK(gptimer_enable(**timerPtr));
+		ESP_ERROR_CHECK(gptimer_start(**timerPtr));
 	#endif
 
 	return true;
+}
+
+uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer) {
+	timer_ptr_t timerPtr = getTimer(timer);
+	#if ESP_IDF_VERSION_MAJOR == 4
+		timer_config_t config;
+		ESP_ERROR_CHECK(timer_get_config((*timerPtr) -> group, (*timerPtr) -> num, &config));
+		return config.divider;
+	#elif ESP_IDF_VERSION_MAJOR == 5
+		uhwt_freq_t freq;
+		ESP_ERROR_CHECK(gptimer_get_resolution(**timerPtr, &freq));
+		return uhwtCalcScalar(freq, storedTicks[timer]);
+	#endif
+}
+
+uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer) {
+	#if ESP_IDF_VERSION_MAJOR == 4
+		timer_ptr_t timerPtr = getTimer(timer);
+		uhwt_timertick_t ticks;
+		ESP_ERROR_CHECK(timer_get_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, &ticks));
+		return ticks;
+	#elif ESP_IDF_VERSION_MAJOR == 5
+		return storedTicks[timer];
+	#endif
 }
 
 #endif

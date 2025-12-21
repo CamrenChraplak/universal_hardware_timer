@@ -217,6 +217,42 @@ extern "C" {
 #endif
 
 /**
+ * Initializes timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtInitTimer(uhwt_timer_t timer);
+
+/**
+ * Deconstruct timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtDeconstructTimer(uhwt_timer_t timer);
+
+/**
+ * Stops timer from executing
+ * 
+ * @param timer timer to stop
+ * 
+ * @return if successful
+ */
+bool uhwtStopTimer(uhwt_timer_t timer);
+
+/**
+ * Starts continuous timer
+ * 
+ * @param timer timer to start
+ * 
+ * @return if successful
+ */
+bool uhwtStartTimer(uhwt_timer_t timer);
+
+/**
  * Stops hardware timer from executing
  * 
  * @param timer timer to stop
@@ -407,31 +443,73 @@ void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
 bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks);
 
 /**
- * Initializes timer
+ * Tests if given timer is valid
  * 
- * @param timer timer to init
+ * @param timer timer to test
  * 
- * @return if successful
+ * @return if timer is valid
  */
-bool uhwtInitTimer(uhwt_timer_t timer);
+static inline bool uhwtValidTimer(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID || timer >= UHWT_TIMER_COUNT) {
+		return false;
+	}
+	return true;
+}
 
 /**
- * Stops timer from executing
+ * Tests if given timer is initialized
  * 
- * @param timer timer to stop
+ * @param timer timer to test
  * 
- * @return if successful
+ * @return if timer is initialized
  */
-bool uhwtStopTimer(uhwt_timer_t timer);
+bool uhwtTimerInitialized(uhwt_timer_t timer);
 
 /**
- * Starts continuous timer
+ * Runs preprocessed code to initialize and set up timer
  * 
- * @param timer timer to start
+ * @param timer pointer to timer to store
+ * @param targetFreq frequency to achieve
+ * @param function pointer to function to call back
+ * @param params parameters to pass to callback function
  * 
  * @return if successful
  */
-bool uhwtStartTimer(uhwt_timer_t timer);
+bool uhwtSetupTimer(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
+
+/**
+ * Runs preprocessed code to initialize and set up complex timer
+ * 
+ * @param timer pointer to timer to store
+ * @param targetFreq frequency to achieve
+ * @param function pointer to function to call back
+ * @param params parameters to pass to callback function
+ * @param priority priority to run timer at (0 min, 255 max)
+ * 
+ * @return if successful
+ */
+bool uhwtSetupComplexTimer(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params,
+		uhwt_priority_t priority);
+
+/**
+ * Gets prescalar for given timer
+ * 
+ * @param timer timer id for retrieval
+ * 
+ * @return prescalar
+ */
+uhwt_prescalar_t uhwtGetPreScalar(uhwt_timer_t timer);
+
+/**
+ * Gets timer ticks for given timer
+ * 
+ * @param timer timer id for retrieval
+ * 
+ * @return timer ticks
+ */
+uhwt_timertick_t uhwtGetTimerTicks(uhwt_timer_t timer);
 
 #ifdef __cplusplus
 }

@@ -39,17 +39,70 @@ typedef struct {
 uhwt_stat_s uhwtStats;
 
 bool uhwtTimerClaimed(uhwt_timer_t timer) {
-	if (timer == UHWT_TIMER_INVALID) {
+	if (!uhwtValidTimer(timer)) {
 		return false;
 	}
 	return !!(uhwtStats.uhwtClaimed & (((uhwt_stat_t)1) << (timer)));
 }
 
 bool uhwtTimerStarted(uhwt_timer_t timer) {
-	if (timer == UHWT_TIMER_INVALID) {
+	if (!uhwtValidTimer(timer)) {
 		return false;
 	}
 	return !!(uhwtStats.uhwtStarted & (((uhwt_stat_t)1) << (timer)));
+}
+
+bool uhwtTimerInitialized(uhwt_timer_t timer) {
+	if (!uhwtValidTimer(timer)) {
+		return false;
+	}
+	return !!(uhwtStats.uhwtInitialized & (((uhwt_stat_t)1) << (timer)));
+}
+
+bool uhwtSetTimerStarted(uhwt_timer_t timer) {
+	if (!uhwtTimerStarted(timer)) {
+		uhwtStats.uhwtStarted |= (1 << (timer));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtSetTimerStopped(uhwt_timer_t timer) {
+	if (uhwtTimerStarted(timer)) {
+		uhwtStats.uhwtStarted &= (~(1 << (timer)));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtSetTimerInitialized(uhwt_timer_t timer) {
+	if (!uhwtTimerInitialized(timer)) {
+		uhwtStats.uhwtInitialized |= (1 << (timer));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtSetTimerDeconstructed(uhwt_timer_t timer) {
+	if (uhwtTimerInitialized(timer)) {
+		uhwtStats.uhwtInitialized &= (~(1 << (timer)));
+		return true;
+	}
+	return false;
+}
+
+uhwt_prescalar_t uhwtGetPreScalar(uhwt_timer_t timer) {
+	if (!uhwtValidTimer(timer)) {
+		return 0;
+	}
+	return uhwtPlatformGetPreScalar(timer);
+}
+
+uhwt_timertick_t uhwtGetTimerTicks(uhwt_timer_t timer) {
+	if (!uhwtValidTimer(timer)) {
+		return 0;
+	}
+	return uhwtPlatformGetTimerTicks(timer);
 }
 
 bool uhwtClaimTimer(uhwt_timer_t *timer) {
@@ -58,7 +111,7 @@ bool uhwtClaimTimer(uhwt_timer_t *timer) {
 		return false;
 	}
 
-	if (*timer != UHWT_TIMER_INVALID) {
+	if (uhwtValidTimer(*timer)) {
 		if (!uhwtTimerClaimed(*timer) && !uhwtTimerStarted(*timer)) {
 			uhwtStats.uhwtClaimed |= (1 << (*timer));
 			return true;
@@ -83,25 +136,9 @@ bool uhwtUnclaimTimer(uhwt_timer_t timer) {
 	return false;
 }
 
-bool uhwtSetTimerStarted(uhwt_timer_t timer) {
-	if (!uhwtTimerStarted(timer)) {
-		uhwtStats.uhwtStarted |= (1 << (timer));
-		return true;
-	}
-	return false;
-}
-
-bool uhwtSetTimerStopped(uhwt_timer_t timer) {
-	if (uhwtTimerStarted(timer)) {
-		uhwtStats.uhwtStarted &= (~(1 << (timer)));
-		return true;
-	}
-	return false;
-}
-
 bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs) {
 
-	if (*timer == UHWT_TIMER_INVALID) {
+	if (!uhwtValidTimer(*timer)) {
 		*timer = uwhtPlatformGetNextTimerStats(claimArgs);
 		if (uhwtClaimTimer(timer)) {
 			return true;
@@ -113,7 +150,7 @@ bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs) {
 }
 
 bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
-	if (!uhwtTimerStarted(timer) && timer != UHWT_TIMER_INVALID) {
+	if (!uhwtTimerStarted(timer) && uhwtValidTimer(timer)) {
 		return uhwtPlatformSetStats(timer, scalar, timerTicks);
 	}
 	return false;
@@ -197,6 +234,10 @@ uhwt_freq_t uhwtGetClosestFreq(uhwt_timer_t timer, uhwt_freq_t targetFreq, uhwt_
 		tempScalar = uhwtGetNextPreScalar(tempScalar);
 	}
 
+	if (*timerTicks == 0 || *scalar == 0) {
+		return 0;
+	}
+
 	return closestFreq;
 }
 
@@ -210,10 +251,10 @@ bool uhwtGetStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_prescalar_t 
 	}
 
 	// gets next free timer if one isn't selected
-	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
+	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || !uhwtValidTimer(*timer)) {
 		*timer = uwhtGetNextTimer();
 	}
-	if (*timer == UHWT_TIMER_INVALID) {
+	if (!uhwtValidTimer(*timer)) {
 		return false;
 	}
 

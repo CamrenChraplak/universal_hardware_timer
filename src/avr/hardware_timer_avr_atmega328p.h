@@ -19,11 +19,6 @@
 /**
  * F_CPU = 16,000,000
  * 
- * F_DER = desired frequency (Hz)
- * 
- * timerTicks = [F_CPU / (scalar * F_DER)] - 1
- * F_DER = F_CPU / [scalar * (timerTicks + 1)]
- * 
  * 8-bit counter for timer 0,2 and 16-bit for timer 1
  * scalars: 1, 8, 64, 256, 1024. timer 2 additional scalars: 32, 128
  */
@@ -39,3 +34,11 @@
 #ifndef UHWT_OVERRIDE_ARDUINO_TIMER
 	#define SKIP_TIMER_INDEX 0
 #endif
+
+#define TIMER_0_MAX_TICK_BITS 8
+#define TIMER_1_MAX_TICK_BITS 16
+#define TIMER_2_MAX_TICK_BITS 8
+
+#define TIMER_0_MAX_TICKS UINT8_MAX
+#define TIMER_1_MAX_TICKS UINT16_MAX
+#define TIMER_2_MAX_TICKS UINT8_MAX
