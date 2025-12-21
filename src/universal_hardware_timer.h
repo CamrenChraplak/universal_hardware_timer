@@ -406,6 +406,24 @@ void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
  */
 bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks);
 
+/**
+ * Initializes timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtInitTimer(uhwt_timer_t timer);
+
+/**
+ * Stops timer from executing
+ * 
+ * @param timer timer to stop
+ * 
+ * @return if successful
+ */
+bool uhwtStopTimer(uhwt_timer_t timer);
+
 #ifdef __cplusplus
 }
 #endif

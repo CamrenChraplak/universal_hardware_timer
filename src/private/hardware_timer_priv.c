@@ -219,6 +219,7 @@ uhwt_platform_callback_ptr_t uhwtGetCallback(uhwt_timer_t timer) {
 // stores status of hardware timers
 typedef struct {
 	uhwt_stat_t uhwtClaimed: UHWT_TIMER_COUNT; // whether timers were claimed or not
+	uhwt_stat_t uhwtInitialized: UHWT_TIMER_COUNT; // whether timers were initialized or not
 	uhwt_stat_t uhwtStarted: UHWT_TIMER_COUNT; // whether timers were started or not
 } uhwt_stat_s;
 
@@ -288,7 +289,7 @@ bool uhwtUnclaimTimer(uhwt_timer_t timer) {
 	return false;
 }
 
-bool uhwtStartTimer(uhwt_timer_t timer) {
+bool uhwtSetTimerStarted(uhwt_timer_t timer) {
 	if (!uhwtTimerStarted(timer)) {
 		uhwtStats.uhwtStarted |= (1 << (timer));
 		return true;
@@ -296,7 +297,7 @@ bool uhwtStartTimer(uhwt_timer_t timer) {
 	return false;
 }
 
-bool uhwtStopTimer(uhwt_timer_t timer) {
+bool uhwtSetTimerStopped(uhwt_timer_t timer) {
 	if (uhwtTimerStarted(timer)) {
 		uhwtStats.uhwtStarted &= (~(1 << (timer)));
 		return true;
@@ -506,6 +507,16 @@ bool uhwtValidFrequency(uhwt_freq_t freq) {
 bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
 	if (!uhwtTimerStarted(timer) && timer != UHWT_TIMER_INVALID) {
 		return uhwtPlatformSetStats(timer, scalar, timerTicks);
+	}
+	return false;
+}
+
+bool uhwtStopTimer(uhwt_timer_t timer) {
+	if (!uhwtTimerStarted(timer)) {
+		return false;
+	}
+	if (uhwtPlatformStopTimer(timer)) {
+		return uhwtSetTimerStopped(timer);
 	}
 	return false;
 }

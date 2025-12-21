@@ -96,7 +96,7 @@ uhwt_platform_callback_ptr_t uhwtGetCallback(uhwt_timer_t timer);
  * 
  * @return if start was successful
  */
-bool uhwtStartTimer(uhwt_timer_t timer);
+bool uhwtSetTimerStarted(uhwt_timer_t timer);
 
 /**
  * Sets timer as stopped
@@ -105,7 +105,7 @@ bool uhwtStartTimer(uhwt_timer_t timer);
  * 
  * @return if stop was successful
  */
-bool uhwtStopTimer(uhwt_timer_t timer);
+bool uhwtSetTimerStopped(uhwt_timer_t timer);
 
 /**
  * Gets next timer according to claim arguments
@@ -199,6 +199,15 @@ bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
  */
 bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar,
 		uhwt_timertick_t timerTicks);
+
+/**
+ * Stops timer from executing
+ * 
+ * @param timer timer to stop
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformStopTimer(uhwt_timer_t timer);
 
 #ifdef __cplusplus
 }
