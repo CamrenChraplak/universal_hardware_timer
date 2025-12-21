@@ -1,0 +1,302 @@
+/*
+	hardware_timer_stat.c - hardware timer stat functionality
+	Copyright (C) 2025 Camren Chraplak
+
+	This program is free software: you can redistribute it and/or modify
+	it under the terms of the GNU General Public License as published by
+	the Free Software Foundation, either version 3 of the License, or
+	(at your option) any later version.
+
+	This program is distributed in the hope that it will be useful,
+	but WITHOUT ANY WARRANTY; without even the implied warranty of
+	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+	GNU General Public License for more details.
+
+	You should have received a copy of the GNU General Public License
+	along with this program.  If not, see <https://www.gnu.org/licenses/>.
+*/
+
+#include "hardware_timer_priv.h"
+
+#if UHWT_TIMER_COUNT <= 8
+	typedef uint8_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 16
+	typedef uint16_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 32
+	typedef uint32_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 64
+	typedef uint64_t uhwt_stat_t; // type for timer stats
+#endif
+
+// stores status of hardware timers
+typedef struct {
+	uhwt_stat_t uhwtClaimed: UHWT_TIMER_COUNT; // whether timers were claimed or not
+	uhwt_stat_t uhwtInitialized: UHWT_TIMER_COUNT; // whether timers were initialized or not
+	uhwt_stat_t uhwtStarted: UHWT_TIMER_COUNT; // whether timers were started or not
+} uhwt_stat_s;
+
+// stores status of all hardware timers
+uhwt_stat_s uhwtStats;
+
+bool uhwtTimerClaimed(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID) {
+		return false;
+	}
+	return !!(uhwtStats.uhwtClaimed & (((uhwt_stat_t)1) << (timer)));
+}
+
+bool uhwtTimerStarted(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID) {
+		return false;
+	}
+	return !!(uhwtStats.uhwtStarted & (((uhwt_stat_t)1) << (timer)));
+}
+
+bool uhwtClaimTimer(uhwt_timer_t *timer) {
+
+	if (timer == NULL) {
+		return false;
+	}
+
+	if (*timer != UHWT_TIMER_INVALID) {
+		if (!uhwtTimerClaimed(*timer) && !uhwtTimerStarted(*timer)) {
+			uhwtStats.uhwtClaimed |= (1 << (*timer));
+			return true;
+		}
+	}
+	else {
+		*timer = uwhtGetNextTimer();
+		if (*timer != UHWT_TIMER_INVALID) {
+			uhwtStats.uhwtClaimed |= (1 << (*timer));
+			return true;
+		}
+	}
+	
+	return false;
+}
+
+bool uhwtUnclaimTimer(uhwt_timer_t timer) {
+	if (uhwtTimerClaimed(timer)) {
+		uhwtStats.uhwtClaimed &= (~(1 << (timer)));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtSetTimerStarted(uhwt_timer_t timer) {
+	if (!uhwtTimerStarted(timer)) {
+		uhwtStats.uhwtStarted |= (1 << (timer));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtSetTimerStopped(uhwt_timer_t timer) {
+	if (uhwtTimerStarted(timer)) {
+		uhwtStats.uhwtStarted &= (~(1 << (timer)));
+		return true;
+	}
+	return false;
+}
+
+bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs) {
+
+	if (*timer == UHWT_TIMER_INVALID) {
+		*timer = uwhtPlatformGetNextTimerStats(claimArgs);
+		if (uhwtClaimTimer(timer)) {
+			return true;
+		}
+		*timer = UHWT_TIMER_INVALID;
+	}
+
+	return uhwtClaimTimer(timer);
+}
+
+bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	if (!uhwtTimerStarted(timer) && timer != UHWT_TIMER_INVALID) {
+		return uhwtPlatformSetStats(timer, scalar, timerTicks);
+	}
+	return false;
+}
+
+/**
+ * Gets difference between given frequencies
+ * 
+ * @param freq1 first frequency to test
+ * @param freq2 second frequency to test
+ * 
+ * @result difference between frequencies
+ */
+uhwt_freq_t uhwtFreqDelta(uhwt_freq_t freq1, uhwt_freq_t freq2) {
+	if (freq1 > freq2) {
+		return freq1 - freq2;
+	}
+	return freq2 - freq1;
+}
+
+/**
+ * Calculates closest stat for given timer
+ * 
+ * @param timer timer to calculate for
+ * @param targetFreq target frequency to achieve
+ * @param scalar pointer to pre scalar to set
+ * @param timerTicks pointer to timer ticks to set
+ * 
+ * @return calculated frequency
+ */
+uhwt_freq_t uhwtGetClosestFreq(uhwt_timer_t timer, uhwt_freq_t targetFreq, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
+
+	// get tick of 1 and corresponding scalar
+	*timerTicks = 1;
+	*scalar = uhwtCalcScalar(targetFreq, *timerTicks);
+
+	// test if tick of 1 works
+	if (uhwtValidPreScalar(timer, *scalar)) {
+		if (uhwtEqualFreq(targetFreq, *scalar, *timerTicks)) {
+			return targetFreq;
+		}
+	}
+
+	*timerTicks = 0;
+	*scalar = 0;
+
+	uhwt_freq_t closestFreq = 0;
+	uhwt_prescalar_t tempScalar = uhwtGetNextPreScalar(0);
+
+	while (tempScalar != 0) {
+		// ignore invalid scalars
+		if (!uhwtValidPreScalar(timer, tempScalar)) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
+			continue;
+		}
+
+		// ignore invalid ticks
+		uhwt_timertick_t calcTicks = uhwtCalcTicks(targetFreq, tempScalar);
+		if (!uhwtValidTimerTicks(timer, calcTicks)) {
+			tempScalar = uhwtGetNextPreScalar(tempScalar);
+			continue;
+		}
+
+		uhwt_freq_t tempFreq = uhwtCalcFreq(tempScalar, calcTicks);
+
+		// frequency is exact value
+		if (uhwtEqualFreq(targetFreq, tempScalar, calcTicks)) {
+			*scalar = tempScalar;
+			*timerTicks = calcTicks;
+			closestFreq = tempFreq;
+			break;
+		}
+
+		// test if newly calculated frequency is closer
+		if (uhwtFreqDelta(targetFreq, closestFreq) > uhwtFreqDelta(targetFreq, tempFreq)) {
+			*scalar = tempScalar;
+			*timerTicks = calcTicks;
+			closestFreq = tempFreq;
+		}
+
+		tempScalar = uhwtGetNextPreScalar(tempScalar);
+	}
+
+	return closestFreq;
+}
+
+bool uhwtGetStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
+	if (timer == NULL || scalar == NULL || timerTicks == NULL) {
+		return false;
+	}
+
+	if (uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) {
+		return false;
+	}
+
+	// gets next free timer if one isn't selected
+	if ((!uhwtTimerClaimed(*timer) && uhwtTimerStarted(*timer)) || *timer == UHWT_TIMER_INVALID) {
+		*timer = uwhtGetNextTimer();
+	}
+	if (*timer == UHWT_TIMER_INVALID) {
+		return false;
+	}
+
+	// gets closest frequency
+	uhwtGetClosestFreq(*timer, targetFreq, scalar, timerTicks);
+
+	if (!uhwtValidPreScalar(*timer, *scalar) || !uhwtValidTimerTicks(*timer, *timerTicks)) {
+		return false;
+	}
+
+	return true;
+}
+
+bool uhwtGetClosestStats(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
+		uhwt_prescalar_t *scalar, uhwt_timertick_t *timerTicks) {
+
+	#ifndef UHWT_CONFIGS_NOT_EQUAL
+		return uhwtGetStats(timer, targetFreq, scalar, timerTicks);
+	#else
+
+		if (timer == NULL || scalar == NULL || timerTicks == NULL) {
+			return false;
+		}
+
+		uhwt_freq_t closestFreq = 0;
+		*scalar = 0;
+		*timerTicks = 0;
+		*timer = UHWT_TIMER_INVALID;
+
+		for (uint8_t i = 0; i < UHWT_TIMER_COUNT; i++) {
+			uhwt_prescalar_t tempScalar;
+			uhwt_timertick_t tempTicks;
+
+			if (uhwtTimerClaimed(i) || uhwtTimerStarted(i)) {
+				continue;
+			}
+
+			// gets closest frequency
+			uhwt_freq_t calcFreq = uhwtGetClosestFreq(i, targetFreq, &tempScalar, &tempTicks);
+
+			// frequency is exact value
+			if (uhwtEqualFreq(targetFreq, tempScalar, tempTicks)) {
+				*scalar = tempScalar;
+				*timerTicks = tempTicks;
+				*timer = i;
+				return true;
+			}
+
+			// test if newly calculated frequency is closer
+			if (uhwtFreqDelta(targetFreq, closestFreq) > uhwtFreqDelta(targetFreq, calcFreq)) {
+				*scalar = tempScalar;
+				*timerTicks = tempTicks;
+				closestFreq = calcFreq;
+				*timer = i;
+			}
+		}
+
+		if (!uhwtValidPreScalar(*timer, *scalar) || !uhwtValidTimerTicks(*timer, *timerTicks)) {
+			return false;
+		}
+
+		return true;
+
+	#endif
+}
+
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) __attribute__((weak));
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
+	return UHWT_TIMER_INVALID;
+}
+
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) __attribute__((weak));
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
+	if (scalar == 0) {
+		return false;
+	}
+	return true;
+}
+
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) __attribute__((weak));
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
+	if (ticks == 0) {
+		return false;
+	}
+	return true;
+}
