@@ -424,6 +424,15 @@ bool uhwtInitTimer(uhwt_timer_t timer);
  */
 bool uhwtStopTimer(uhwt_timer_t timer);
 
+/**
+ * Starts continuous timer
+ * 
+ * @param timer timer to start
+ * 
+ * @return if successful
+ */
+bool uhwtStartTimer(uhwt_timer_t timer);
+
 #ifdef __cplusplus
 }
 #endif

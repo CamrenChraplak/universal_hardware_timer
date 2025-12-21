@@ -130,7 +130,13 @@ uhwt_timertick_t storedTicks[UHWT_TIMER_COUNT];
  * 
  * @return pointer to timer selected
  */
-timer_ptr_t getTimer(uhwt_timer_t timer);
+timer_ptr_t getTimer(uhwt_timer_t timer) {
+
+	if (timer == UHWT_TIMER_INVALID) {
+		return NULL;
+	}
+	return &timers[timer];
+}
 
 /**
  * Scales input priority
@@ -141,7 +147,22 @@ timer_ptr_t getTimer(uhwt_timer_t timer);
  * 
  * @return priority flag for 'intr_alloc_flags' when calling 'timer_isr_callback_add'
  */
-int setPriority(uhwt_priority_t priority);
+int setPriority(uhwt_priority_t priority) {
+	#ifdef PLATFORMIO
+		// use input priority for PlatformIO
+		int adjustment = priority / (UINT8_MAX / 3);
+		#if ESP_IDF_VERSION_MAJOR == 4
+			return (1 << adjustment);
+		#elif ESP_IDF_VERSION_MAJOR == 5
+			return adjustment;
+		#else
+			return 0;
+		#endif
+	#else
+		// use default priority with esp-idf
+		return 0;
+	#endif
+}
 
 /****************************
  * Platform Functions
@@ -323,129 +344,53 @@ bool uhwtPlatformStopTimer(uhwt_timer_t timer) {
 	return true;
 }
 
-/****************************
- * Timer Functions
-****************************/
+bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 
-int setPriority(uhwt_priority_t priority) {
-	#ifdef PLATFORMIO
-		// use input priority for PlatformIO
-		int adjustment = priority / (UINT8_MAX / 3);
-		#if ESP_IDF_VERSION_MAJOR == 4
-			return (1 << adjustment);
-		#elif ESP_IDF_VERSION_MAJOR == 5
-			return adjustment;
-		#else
-			return 0;
-		#endif
-	#else
-		// use default priority with esp-idf
-		return 0;
-	#endif
-}
-
-timer_ptr_t getTimer(uhwt_timer_t timer) {
-
-	if (timer == UHWT_TIMER_INVALID) {
-		return NULL;
-	}
-	return &timers[timer];
-}
-
-bool cancelHardTimer(uhwt_timer_t timer) {
-	return uhwtStopTimer(timer);
-}
-
-bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
+	timer_ptr_t timerPtr = getTimer(timer);
 	
-	if (function == NULL || freq == NULL || timer == NULL) {
-		return false;
-	}
-	if (*freq == (uhwt_freq_t)0 || *freq > UHWT_TIMER_FREQ_MAX) {
-		return false;
-	}
+	#if ESP_IDF_VERSION_MAJOR == 4
+		// run timer
+		timer_set_auto_reload((*timerPtr) -> group, (*timerPtr) -> num, true);
+		timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, true);
+		timer_start((*timerPtr) -> group, (*timerPtr) -> num);
+	#elif ESP_IDF_VERSION_MAJOR == 5
+		// timer config
+		gptimer_config_t config = {
+			.clk_src = GPTIMER_CLK_SRC_DEFAULT,
+			.direction = GPTIMER_COUNT_UP,
+			.resolution_hz = storedFreq[timer],
+			.intr_priority = setPriority(uhwtPriorities[timer]),
+		};
 
-	uhwt_prescalar_t scalar;
-	uhwt_timertick_t timerTicks;
+		// function config
+		gptimer_alarm_config_t configAlarm = {
+			.reload_count = 0,
+			.alarm_count = storedTicks[timer],
+			.flags.auto_reload_on_alarm = true,
+		};
 
-	if (!uhwtGetStats(timer, *freq, &scalar, &timerTicks)) {
-		return false;
-	}
-	if (!uhwtValidPreScalar(*timer, scalar) || !uhwtValidTimerTicks(*timer, timerTicks)) {
-		return false;
-	}
-	*freq = uhwtCalcFreq(scalar, timerTicks);
+		// creates new timer
+		gptimer_new_timer(&config, *timerPtr);
 
-	if (!uhwtTimerStarted(*timer)) {
+		// sets up callback function
+		gptimer_set_alarm_action(**timerPtr, &configAlarm);
 
-		timer_ptr_t timerPtr = getTimer(*timer);
-		
-		#if ESP_IDF_VERSION_MAJOR == 4
+		// callback config
+		gptimer_event_callbacks_t configCallback = {
+			.on_alarm = uhwtGetCallback(timer),
+		};
 
-			uhwtInitTimer(*timer);
-			uhwtSetPriority(*timer, priority);
-			uhwtSetCallbackParams(*timer, function, params);
-			uhwtSetStats(*timer, scalar, timerTicks);
+		if (gptimer_register_event_callbacks(**timerPtr, &configCallback,
+				NULL) != ESP_OK) {
+			return false;
+		}
 
-			// run timer
-			timer_set_auto_reload((*timerPtr) -> group, (*timerPtr) -> num, true);
-			timer_set_alarm((*timerPtr) -> group, (*timerPtr) -> num, true);
-			timer_start((*timerPtr) -> group, (*timerPtr) -> num);
+		// starts timer
+		gptimer_enable(**timerPtr);
+		gptimer_start(**timerPtr);
+	#endif
 
-			uhwtSetTimerStarted(*timer);
-
-			return true;
-
-		#elif ESP_IDF_VERSION_MAJOR == 5
-
-			uhwtInitTimer(*timer);
-			uhwtSetPriority(*timer, priority);
-			uhwtSetCallbackParams(*timer, function, params);
-			uhwtSetStats(*timer, scalar, timerTicks);
-
-			// timer config
-			gptimer_config_t config = {
-				.clk_src = GPTIMER_CLK_SRC_DEFAULT,
-				.direction = GPTIMER_COUNT_UP,
-				.resolution_hz = storedFreq[*timer],
-				.intr_priority = setPriority(uhwtPriorities[*timer]),
-			};
-
-			// function config
-			gptimer_alarm_config_t configAlarm = {
-				.reload_count = 0,
-				.alarm_count = storedTicks[*timer],
-				.flags.auto_reload_on_alarm = true,
-			};
-
-			// creates new timer
-			gptimer_new_timer(&config, *timerPtr);
-
-			// sets up callback function
-			gptimer_set_alarm_action(**timerPtr, &configAlarm);
-
-			// callback config
-			gptimer_event_callbacks_t configCallback = {
-				.on_alarm = uhwtGetCallback(*timer),
-			};
-
-			if (gptimer_register_event_callbacks(**timerPtr, &configCallback,
-					params) != ESP_OK) {
-				return false;
-			}
-
-			// starts timer
-			gptimer_enable(**timerPtr);
-			gptimer_start(**timerPtr);
-
-			uhwtSetTimerStarted(*timer);
-
-			return true;
-
-		#endif
-	}
-
-	return false;
+	return true;
 }
 
 #endif

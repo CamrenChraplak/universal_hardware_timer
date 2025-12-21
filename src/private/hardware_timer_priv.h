@@ -209,6 +209,15 @@ bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar,
  */
 bool uhwtPlatformStopTimer(uhwt_timer_t timer);
 
+/**
+ * Starts continuous timer
+ * 
+ * @param timer timer to start
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformStartTimer(uhwt_timer_t timer);
+
 #ifdef __cplusplus
 }
 #endif

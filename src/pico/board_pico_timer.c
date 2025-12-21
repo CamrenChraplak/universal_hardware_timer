@@ -108,49 +108,12 @@ bool uhwtPlatformStopTimer(uhwt_timer_t timer) {
 	return true;
 }
 
-/****************************
- * Timer Functions
-****************************/
-
-bool cancelHardTimer(uhwt_timer_t timer) {
-	return uhwtStopTimer(timer);
-}
-
-bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
-
-	if (function == NULL || freq == NULL || timer == NULL) {
+bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
+	struct repeating_timer* timerPtr = getTimer(timer);
+	if (!add_repeating_timer_us(-picoTicks[timer], uhwtGetCallback(timer), NULL, timerPtr)) {
 		return false;
 	}
-	if (*freq == (uhwt_freq_t)0 || *freq > UHWT_TIMER_FREQ_MAX) {
-		return false;
-	}
-
-	uhwt_prescalar_t scalar;
-	uhwt_timertick_t timerTicks;
-	
-	if (!uhwtGetStats(timer, *freq, &scalar, &timerTicks)) {
-		return false;
-	}
-	if (!uhwtValidPreScalar(*timer, scalar) || !uhwtValidTimerTicks(*timer, timerTicks)) {
-		return false;
-	}
-	*freq = uhwtCalcFreq(scalar, timerTicks);
-
-	if (!uhwtTimerStarted(*timer)) {
-		struct repeating_timer* timerPtr = getTimer(*timer);
-
-		uhwtInitTimer(*timer);
-		
-		uhwtSetCallbackParams(*timer, function, params);
-		uhwtSetStats(*timer, scalar, timerTicks);
-
-		if (add_repeating_timer_us(-picoTicks[*timer], uhwtGetCallback(*timer), NULL, timerPtr)) {
-			uhwtSetTimerStarted(*timer);
-			return true;
-		}
-	}
-
-	return false;
+	return true;
 }
 
 #endif
