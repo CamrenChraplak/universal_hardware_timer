@@ -166,20 +166,18 @@ bool uhwtSetupComplexTimer(uhwt_timer_t *timer, uhwt_freq_t targetFreq, uhwt_fun
 }
 
 // TODO: remove
-// TODO: Uno time off
 
 bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq, uhwt_function_ptr_t function, uhwt_params_ptr_t params, uhwt_priority_t priority) {
 
 	if (freq == NULL) {
 		return false;
 	}
-	//if (!uhwtSetupTimer(timer, *freq, function, params)) {
-	if (!uhwtSetupComplexTimer(timer, *freq, function, params, priority)) {
+	if (!uhwtSetupTimer(timer, *freq, function, params)) {
+	//if (!uhwtSetupComplexTimer(timer, *freq, function, params, priority)) {
 		return false;
 	}
-	// *freq = uhwtCalcFreq(uhwtGetPreScalar(*timer), uhwtGetTimerTicks(*timer));
+	*freq = uhwtCalcFreq(uhwtGetPreScalar(*timer), uhwtGetTimerTicks(*timer));
 	return uhwtStartTimer(*timer);
-	
 }
 
 // TODO: remove

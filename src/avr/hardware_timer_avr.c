@@ -186,6 +186,7 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 	cli(); \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET) = timerTicks; \
 	HARD_TIMER_CONCATENATE3(uhwtTimer, num, SetScalar)(scalar); \
+	HARD_TIMER_CONCATENATE3(TIMER_, num, _INCR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INCREM_ENABLE); \
 	sei()
 
 bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
@@ -294,7 +295,6 @@ bool uhwtPlatformStopTimer(uhwt_timer_t timer) {
  */
 #define UHWT_START_TIMER(num) \
 	cli(); \
-	HARD_TIMER_CONCATENATE3(TIMER_, num, _INCR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INCREM_ENABLE); \
 	HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INTERR_ENABLE); \
 	sei()
 
