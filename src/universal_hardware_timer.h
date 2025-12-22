@@ -78,6 +78,7 @@ typedef struct {
 
 #if UHWT_SUPPORT_ESP32
 
+	#include <esp_attr.h>
 	#include <esp_system.h>
 
 	/****************************
@@ -92,7 +93,21 @@ typedef struct {
 	typedef uint16_t uhwt_prescalar_t; // prescalar type
 	typedef uint64_t uhwt_timertick_t; // timer tick type
 
+	/**
+	 * Runs function in ram
+	 * 
+	 * @param function function literal name
+	 * 
+	 * @note Usage:
+	 * @note [type] UHWT_RAM_ATTR(fName) fName([params]) {
+	 * @note 	[code]
+	 * @note }
+	 */
+	#define UHWT_RAM_ATTR(function) IRAM_ATTR
+
 #elif UHWT_SUPPORT_PICO
+
+	#include <pico.h>
 
 	/****************************
 	 * Timer Config
@@ -109,6 +124,18 @@ typedef struct {
 
 	typedef uint8_t uhwt_prescalar_t; // prescalar type
 	typedef int64_t uhwt_timertick_t; // timer tick type
+
+	/**
+	 * Runs function in ram
+	 * 
+	 * @param function function literal name
+	 * 
+	 * @note Usage:
+	 * @note [type] UHWT_RAM_ATTR(fName) fName([params]) {
+	 * @note 	[code]
+	 * @note }
+	 */
+	#define UHWT_RAM_ATTR(function) __not_in_flash(__STRING( function ))
 
 #elif UHWT_SUPPORT_AVR
 
@@ -154,6 +181,20 @@ typedef struct {
 	typedef uint8_t uhwt_prescalar_t; // prescalar type
 	typedef uint8_t uhwt_timertick_t; // timer tick type
 
+#endif
+
+#ifndef UHWT_RAM_ATTR
+	/**
+	 * Runs function in ram
+	 * 
+	 * @param function function literal name
+	 * 
+	 * @note Usage:
+	 * @note [type] UHWT_RAM_ATTR(fName) fName([params]) {
+	 * @note 	[code]
+	 * @note }
+	 */
+	#define UHWT_RAM_ATTR(funcName)
 #endif
 
 typedef enum { // hardware timer enum type
@@ -217,42 +258,6 @@ extern "C" {
 #endif
 
 /**
- * Initializes timer
- * 
- * @param timer timer to init
- * 
- * @return if successful
- */
-bool uhwtInitTimer(uhwt_timer_t timer);
-
-/**
- * Deconstruct timer
- * 
- * @param timer timer to init
- * 
- * @return if successful
- */
-bool uhwtDeconstructTimer(uhwt_timer_t timer);
-
-/**
- * Stops timer from executing
- * 
- * @param timer timer to stop
- * 
- * @return if successful
- */
-bool uhwtStopTimer(uhwt_timer_t timer);
-
-/**
- * Starts continuous timer
- * 
- * @param timer timer to start
- * 
- * @return if successful
- */
-bool uhwtStartTimer(uhwt_timer_t timer);
-
-/**
  * Stops hardware timer from executing
  * 
  * @param timer timer to stop
@@ -292,14 +297,54 @@ bool setHardTimer(uhwt_timer_t *timer, uhwt_freq_t *freq,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params,
 		uhwt_priority_t priority);
 
+/****************************
+ * Universal Hardware Timer Functions
+****************************/
+
 /**
- * Tests if timer is claimed
+ * Initializes timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtInitTimer(uhwt_timer_t timer);
+
+/**
+ * Deconstruct timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtDeconstructTimer(uhwt_timer_t timer);
+
+/**
+ * Stops timer from executing
+ * 
+ * @param timer timer to stop
+ * 
+ * @return if successful
+ */
+bool uhwtStopTimer(uhwt_timer_t timer);
+
+/**
+ * Starts continuous timer
+ * 
+ * @param timer timer to start
+ * 
+ * @return if successful
+ */
+bool uhwtStartTimer(uhwt_timer_t timer);
+
+/**
+ * Tests if given timer is initialized
  * 
  * @param timer timer to test
  * 
- * @return claim status
+ * @return if timer is initialized
  */
-bool uhwtTimerClaimed(uhwt_timer_t timer);
+bool uhwtTimerInitialized(uhwt_timer_t timer);
 
 /**
  * Tests if timer is started
@@ -339,6 +384,15 @@ bool uhwtClaimTimerStats(uhwt_timer_t *timer, uhwt_claim_s claimArgs);
 bool uhwtUnclaimTimer(uhwt_timer_t timer);
 
 /**
+ * Tests if timer is claimed
+ * 
+ * @param timer timer to test
+ * 
+ * @return claim status
+ */
+bool uhwtTimerClaimed(uhwt_timer_t timer);
+
+/**
  * Gets next available timer
  * 
  * @return timer retrieved
@@ -353,37 +407,6 @@ uhwt_timer_t uwhtGetNextTimer();
  * @return timer retrieved
  */
 uhwt_timer_t uwhtGetNextTimerStats(uhwt_claim_s claimArgs);
-
-/**
- * Calculates timer frequency from given timer presets
- * 
- * @param scalar pre scalar for timer
- * @param ticks timer ticks per cycle
- * 
- * @return calculated frequency
- */
-uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
-
-/**
- * Tests if timer presets equal the target frequency
- * 
- * @param targetFreq frequency to test
- * @param scalar pre scalar for timer
- * @param ticks timer ticks per cycle
- * 
- * @return if presets set equal to timer
- */
-bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar,
-		uhwt_timertick_t ticks);
-
-/**
- * Tests if given frequency is valid or not
- * 
- * @param freq frequency to test
- * 
- * @return if frequency is valid
- */
-bool uhwtValidFrequency(uhwt_freq_t freq);
 
 /**
  * Gets pre scalar and timer tick stats for target frequency for next available timer
@@ -424,14 +447,6 @@ bool uhwtSetCallbackParams(uhwt_timer_t timer,
 		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
 
 /**
- * Sets function execution priority
- * 
- * @param timer timer to set
- * @param priority value to set
- */
-void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
-
-/**
  * Sets timer stats for frequency
  * 
  * @param timer timer to set
@@ -441,29 +456,6 @@ void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
  * @return if successful
  */
 bool uhwtSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks);
-
-/**
- * Tests if given timer is valid
- * 
- * @param timer timer to test
- * 
- * @return if timer is valid
- */
-static inline bool uhwtValidTimer(uhwt_timer_t timer) {
-	if (timer == UHWT_TIMER_INVALID || timer >= UHWT_TIMER_COUNT) {
-		return false;
-	}
-	return true;
-}
-
-/**
- * Tests if given timer is initialized
- * 
- * @param timer timer to test
- * 
- * @return if timer is initialized
- */
-bool uhwtTimerInitialized(uhwt_timer_t timer);
 
 /**
  * Runs preprocessed code to initialize and set up timer
@@ -494,6 +486,48 @@ bool uhwtSetupComplexTimer(uhwt_timer_t *timer, uhwt_freq_t targetFreq,
 		uhwt_priority_t priority);
 
 /**
+ * Tests if given frequency is valid or not
+ * 
+ * @param freq frequency to test
+ * 
+ * @return if frequency is valid
+ */
+static inline bool uhwtValidFrequency(uhwt_freq_t freq) {
+	if (freq > UHWT_TIMER_FREQ_MAX || freq == 0) {
+		return false;
+	}
+	return true;
+}
+
+/**
+ * Tests if given timer is valid
+ * 
+ * @param timer timer to test
+ * 
+ * @return if timer is valid
+ */
+static inline bool uhwtValidTimer(uhwt_timer_t timer) {
+	if (timer == UHWT_TIMER_INVALID || timer >= UHWT_TIMER_COUNT) {
+		return false;
+	}
+	return true;
+}
+
+/****************************
+ * Platform Functions
+****************************/
+
+/**
+ * Calculates timer frequency from given timer presets
+ * 
+ * @param scalar pre scalar for timer
+ * @param ticks timer ticks per cycle
+ * 
+ * @return calculated frequency
+ */
+uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
+
+/**
  * Gets prescalar for given timer
  * 
  * @param timer timer id for retrieval
@@ -510,6 +544,26 @@ uhwt_prescalar_t uhwtGetPreScalar(uhwt_timer_t timer);
  * @return timer ticks
  */
 uhwt_timertick_t uhwtGetTimerTicks(uhwt_timer_t timer);
+
+/**
+ * Tests if timer presets equal the target frequency
+ * 
+ * @param targetFreq frequency to test
+ * @param scalar pre scalar for timer
+ * @param ticks timer ticks per cycle
+ * 
+ * @return if presets set equal to timer
+ */
+bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar,
+		uhwt_timertick_t ticks);
+
+/**
+ * Sets function execution priority
+ * 
+ * @param timer timer to set
+ * @param priority value to set
+ */
+void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority);
 
 #ifdef __cplusplus
 }

@@ -50,30 +50,11 @@ struct repeating_timer* getTimer(uhwt_timer_t timer) {
 #define PICO_SDK_TIMER_MAX 1000000
 
 /****************************
- * Platform Functions
+ * Universal Hardware Timer Functions
 ****************************/
 
 uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
 	return PICO_SDK_TIMER_MAX / ticks;
-}
-
-bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	if (PICO_SDK_TIMER_MAX % ticks != 0) {
-		return false;
-	}
-	return true;
-}
-
-uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
-	// u64 bit max
-	// always constant
-
-	// 0: start of request
-	if (!prevScalar) {
-		return 1;
-	}
-	// end of request
-	return 0;
 }
 
 uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar) {
@@ -84,17 +65,9 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 	return 1;
 }
 
-bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
-	if (scalar == 1) {
-		return true;
-	}
-	return false;
-}
-
-bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
-	picoTicks[timer] = timerTicks;
-	return true;
-}
+/****************************
+ * Platform Functions
+****************************/
 
 bool uhwtPlatformInitTimer(uhwt_timer_t timer) {
 	return true;
@@ -120,12 +93,43 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 	return true;
 }
 
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	picoTicks[timer] = timerTicks;
+	return true;
+}
+
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	if (PICO_SDK_TIMER_MAX % ticks != 0) {
+		return false;
+	}
+	return true;
+}
+
+uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
+	// u64 bit max
+	// always constant
+
+	// 0: start of request
+	if (!prevScalar) {
+		return 1;
+	}
+	// end of request
+	return 0;
+}
+
 uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer) {
 	return 1;
 }
 
 uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer) {
 	return picoTicks[timer];
+}
+
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
+	if (scalar == 1) {
+		return true;
+	}
+	return false;
 }
 
 #endif

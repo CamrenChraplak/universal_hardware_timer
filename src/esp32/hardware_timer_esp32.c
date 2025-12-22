@@ -166,7 +166,7 @@ int setPriority(uhwt_priority_t priority) {
 }
 
 /****************************
- * Platform Functions
+ * Universal Hardware Timer Functions
 ****************************/
 
 uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
@@ -174,62 +174,6 @@ uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
 		return 0;
 	}
 	return APB_CLK_FREQ / (scalar * ticks);
-}
-
-bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	if (APB_CLK_FREQ % (scalar * ticks) != 0) {
-		return false;
-	}
-	return true;
-}
-
-bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
-	
-	/**
-	 * Pre Scalar counts (and amount of timers)
-	 * 
-	 * General Timers: https://docs.espressif.com/projects/arduino-esp32/en/latest/api/timer.html
-	 * 
-	 * ESP32: 64 (2x2) https://documentation.espressif.com/esp32_datasheet_en.pdf
-	 * ESP32-S2: 64 (4? general vs 1? datasheet) https://documentation.espressif.com/esp32-s2_datasheet_en.pdf
-	 * ESP32-S3: 54? datasheet vs 64? general (4) https://documentation.espressif.com/esp32-s3_datasheet_en.pdf
-	 * ESP32-C2 or ESP-8684: 54 datasheet only (1 datasheet only) https://documentation.espressif.com/esp8684_datasheet_en.pdf
-	 * ESP32-C3: 54 (2) https://documentation.espressif.com/esp32-c3_datasheet_en.pdf
-	 * ESP32-C5: 54 datasheet only (2 datasheet only) https://documentation.espressif.com/esp32-c5_datasheet_en.pdf
-	 * ESP32-C6: 54? datasheet vs 64? general (2) https://documentation.espressif.com/esp32-c6_datasheet_en.pdf
-	 * ESP32-C61: 54 datasheet only (2 datasheet only) https://documentation.espressif.com/esp32-c61_datasheet_en.pdf
-	 * ESP32-H2: 54? datasheet vs 64? general (2) https://documentation.espressif.com/esp32-h2_datasheet_en.pdf
-	 * ESP32-P4: 54 datasheet only (4 datasheet only) https://documentation.espressif.com/esp32-p4-chip-revision-v1.3_datasheet_en.pdf
-	 */
-
-	// TODO: 54 bit ticks
-	
-	return true;
-}
-
-uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
-	// u16 bit max
-	// 2^16 - 1 -> 2^15 -> 2^14 -> ... -> 2^2 -> 2^1 -> 1 -> 0 -> 2^16 - 1
-
-	#define MAX_PRESCALAR_BITS 16
-	
-	// 0: start of request
-	if (prevScalar == 0) {
-		return UINT16_MAX;
-	}
-	// 2^16 - 1
-	else if (prevScalar == UINT16_MAX) {
-		return 0b1000000000000000;
-	}
-	else {
-		prevScalar = prevScalar >> (1);
-		for (uint8_t i = 0; i < MAX_PRESCALAR_BITS; i++) {
-			if (!(prevScalar ^ (1 << i))) {
-				return prevScalar;
-			}
-		}
-	}
-	return 0;
 }
 
 uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar) {
@@ -252,41 +196,9 @@ void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority) {
 	}
 }
 
-bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
-		uhwt_function_ptr_t function, uhwt_params_ptr_t params) {
-		
-	#if ESP_IDF_VERSION_MAJOR == 4
-		timer_ptr_t timerPtr = getTimer(timer);
-		ESP_ERROR_CHECK(timer_isr_callback_add((*timerPtr) -> group,
-				(*timerPtr) -> num, uhwtGetCallback(timer), params,
-				setPriority(uhwtPriorities[timer])));
-
-	#endif
-
-	return true;
-}
-
-bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
-	#if ESP_IDF_VERSION_MAJOR == 4
-		timer_ptr_t timerPtr = getTimer(timer);
-		ESP_ERROR_CHECK(timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks));
-		ESP_ERROR_CHECK(timer_set_divider((*timerPtr) -> group, (*timerPtr) -> num, scalar));
-	#elif ESP_IDF_VERSION_MAJOR == 5
-		uhwt_freq_t tempFreq = uhwtCalcFreq(scalar, timerTicks);
-		uhwt_timertick_t tempTicks = 1;
-
-		// adjusts frequency to be above min
-		while (tempFreq < HARD_TIMER_FREQ_MIN) {
-			tempFreq *= 2;
-			tempTicks *= 2;
-		}
-
-		storedFreq[timer] = tempFreq;
-		storedTicks[timer] = tempTicks;
-
-	#endif
-	return true;
-}
+/****************************
+ * Platform Functions
+****************************/
 
 bool uhwtPlatformInitTimer(uhwt_timer_t timer) {
 
@@ -392,6 +304,60 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 	return true;
 }
 
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	#if ESP_IDF_VERSION_MAJOR == 4
+		timer_ptr_t timerPtr = getTimer(timer);
+		ESP_ERROR_CHECK(timer_set_alarm_value((*timerPtr) -> group, (*timerPtr) -> num, timerTicks));
+		ESP_ERROR_CHECK(timer_set_divider((*timerPtr) -> group, (*timerPtr) -> num, scalar));
+	#elif ESP_IDF_VERSION_MAJOR == 5
+		uhwt_freq_t tempFreq = uhwtCalcFreq(scalar, timerTicks);
+		uhwt_timertick_t tempTicks = 1;
+
+		// adjusts frequency to be above min
+		while (tempFreq < HARD_TIMER_FREQ_MIN) {
+			tempFreq *= 2;
+			tempTicks *= 2;
+		}
+
+		storedFreq[timer] = tempFreq;
+		storedTicks[timer] = tempTicks;
+
+	#endif
+	return true;
+}
+
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	if (APB_CLK_FREQ % (scalar * ticks) != 0) {
+		return false;
+	}
+	return true;
+}
+
+uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
+	// u16 bit max
+	// 2^16 - 1 -> 2^15 -> 2^14 -> ... -> 2^2 -> 2^1 -> 1 -> 0 -> 2^16 - 1
+
+	#define MAX_PRESCALAR_BITS 16
+	
+	// 0: start of request
+	if (prevScalar == 0) {
+		return UINT16_MAX;
+	}
+	// 2^16 - 1
+	else if (prevScalar == UINT16_MAX) {
+		return 0b1000000000000000;
+	}
+	else {
+		prevScalar = prevScalar >> (1);
+		for (uint8_t i = 0; i < MAX_PRESCALAR_BITS; i++) {
+			if (!(prevScalar ^ (1 << i))) {
+				return prevScalar;
+			}
+		}
+	}
+	return 0;
+}
+
 uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer) {
 	timer_ptr_t timerPtr = getTimer(timer);
 	#if ESP_IDF_VERSION_MAJOR == 4
@@ -414,6 +380,44 @@ uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer) {
 	#elif ESP_IDF_VERSION_MAJOR == 5
 		return storedTicks[timer];
 	#endif
+}
+
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
+	
+	/**
+	 * Pre Scalar counts (and amount of timers)
+	 * 
+	 * General Timers: https://docs.espressif.com/projects/arduino-esp32/en/latest/api/timer.html
+	 * 
+	 * ESP32: 64 (2x2) https://documentation.espressif.com/esp32_datasheet_en.pdf
+	 * ESP32-S2: 64 (4? general vs 1? datasheet) https://documentation.espressif.com/esp32-s2_datasheet_en.pdf
+	 * ESP32-S3: 54? datasheet vs 64? general (4) https://documentation.espressif.com/esp32-s3_datasheet_en.pdf
+	 * ESP32-C2 or ESP-8684: 54 datasheet only (1 datasheet only) https://documentation.espressif.com/esp8684_datasheet_en.pdf
+	 * ESP32-C3: 54 (2) https://documentation.espressif.com/esp32-c3_datasheet_en.pdf
+	 * ESP32-C5: 54 datasheet only (2 datasheet only) https://documentation.espressif.com/esp32-c5_datasheet_en.pdf
+	 * ESP32-C6: 54? datasheet vs 64? general (2) https://documentation.espressif.com/esp32-c6_datasheet_en.pdf
+	 * ESP32-C61: 54 datasheet only (2 datasheet only) https://documentation.espressif.com/esp32-c61_datasheet_en.pdf
+	 * ESP32-H2: 54? datasheet vs 64? general (2) https://documentation.espressif.com/esp32-h2_datasheet_en.pdf
+	 * ESP32-P4: 54 datasheet only (4 datasheet only) https://documentation.espressif.com/esp32-p4-chip-revision-v1.3_datasheet_en.pdf
+	 */
+
+	// TODO: 54 bit ticks
+	
+	return true;
+}
+
+bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params) {
+		
+	#if ESP_IDF_VERSION_MAJOR == 4
+		timer_ptr_t timerPtr = getTimer(timer);
+		ESP_ERROR_CHECK(timer_isr_callback_add((*timerPtr) -> group,
+				(*timerPtr) -> num, uhwtGetCallback(timer), params,
+				setPriority(uhwtPriorities[timer])));
+
+	#endif
+
+	return true;
 }
 
 #endif

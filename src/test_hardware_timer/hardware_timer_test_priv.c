@@ -54,8 +54,6 @@
 	#define FAST_TEST_BUFFER 0 // amount fast timer can be off of goal
 #endif
 
-#define HARD_TIMER_RAM_ATTR(funcName)
-
 /**
  * Tests if timer is invalid timer or not
  */
@@ -65,6 +63,7 @@
 	}
 
 memCharString invalidStartFail[] = {"Start State"};
+memCharString invalidInitFail[] = {"Init State"};
 memCharString startFail[] = {"Start"};
 memCharString noSetTimerFail[] = {"No Set Timer"};
 memCharString restartFail[] = {"Restart"};
@@ -121,14 +120,14 @@ volatile uint32_t hardTimerCount = 0U;
 /**
  * Testing function
  */
-void HARD_TIMER_RAM_ATTR(testTimingFunction) testTimingFunction(void *params) {
+void UHWT_RAM_ATTR(testTimingFunction) testTimingFunction(void *params) {
 	hardTimerCount++;
 }
 
 /**
  * Testing function
  */
-void HARD_TIMER_RAM_ATTR(testTimingFunctionParams) testTimingFunctionParams(void *params) {
+void UHWT_RAM_ATTR(testTimingFunctionParams) testTimingFunctionParams(void *params) {
 	hardTimerCount += *(uint32_t*)params;
 }
 
@@ -138,7 +137,8 @@ void HARD_TIMER_RAM_ATTR(testTimingFunctionParams) testTimingFunctionParams(void
 void resetTimers() {
 	for (int i = 0; i < UHWT_TIMER_COUNT; i++) {
 		uhwtUnclaimTimer((uhwt_timer_t)i);
-		cancelHardTimer((uhwt_timer_t)i);
+		uhwtStopTimer((uhwt_timer_t)i);
+		uhwtDeconstructTimer((uhwt_timer_t)i);
 	}
 }
 
@@ -155,6 +155,18 @@ void testGetStartState(uhwt_timer_t timer, bool start) {
 }
 
 /**
+ * Tests timer init state
+ * 
+ * @param timer timer to test
+ * @param start whether timer should or shouldn't be initialized
+ */
+void testGetInitializedState(uhwt_timer_t timer, bool init) {
+	if (uhwtTimerInitialized(timer) != init) {
+		TEST_FAIL_MESSAGE(invalidInitFail);
+	}
+}
+
+/**
  * Tests that no timers are set when starting
  * 
  * @warning Only call when timers aren't started nor initialized
@@ -163,6 +175,7 @@ void testProgramStart() {
 	resetTimers();
 	for (int i = 0; i < UHWT_TIMER_COUNT; i++) {
 		testGetStartState((uhwt_timer_t)i, false);
+		testGetInitializedState((uhwt_timer_t)i, false);
 	}
 	TEST_PASS();
 }

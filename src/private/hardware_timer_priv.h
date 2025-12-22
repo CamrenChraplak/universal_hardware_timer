@@ -80,14 +80,9 @@
 extern "C" {
 #endif
 
-/**
- * Gets callback function used for setting timer
- * 
- * @param timer timer to get
- * 
- * @return pointer to callback function
- */
-uhwt_platform_callback_ptr_t uhwtGetCallback(uhwt_timer_t timer);
+/****************************
+ * Stats
+****************************/
 
 /**
  * Sets timer as started
@@ -108,6 +103,24 @@ bool uhwtSetTimerStarted(uhwt_timer_t timer);
 bool uhwtSetTimerStopped(uhwt_timer_t timer);
 
 /**
+ * Sets timer as initialized
+ * 
+ * @param timer timer id
+ * 
+ * @return if timer was initialized
+ */
+bool uhwtSetTimerInitialized(uhwt_timer_t timer);
+
+/**
+ * Sets timer as deconstructed
+ * 
+ * @param timer timer id
+ * 
+ * @return if timer was deconstructed
+ */
+bool uhwtSetTimerDeconstructed(uhwt_timer_t timer);
+
+/**
  * Gets next timer according to claim arguments
  * 
  * @param claimArgs arguments for getting timer
@@ -115,17 +128,6 @@ bool uhwtSetTimerStopped(uhwt_timer_t timer);
  * @return timer retrieved
  */
 uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs);
-
-/**
- * Tests if timer presets equal the target frequency
- * 
- * @param targetFreq frequency to test
- * @param scalar pre scalar for timer
- * @param ticks timer ticks per cycle
- * 
- * @return if presets set equal to timer
- */
-bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
 
 /**
  * Tests if given pre scalar is valid for timer
@@ -146,6 +148,94 @@ bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar);
  * @return if timer ticks is valid
  */
 bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks);
+
+/****************************
+ * Callback
+****************************/
+
+/**
+ * Gets callback function used for setting timer
+ * 
+ * @param timer timer to get
+ * 
+ * @return pointer to callback function
+ */
+uhwt_platform_callback_ptr_t uhwtGetCallback(uhwt_timer_t timer);
+
+/**
+ * Sets function to execute for timer ISR
+ * 
+ * @param timer timer to set
+ * @param function function to set
+ * @param params params to set
+ * 
+ * @return if successfully set
+ */
+bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
+		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
+
+/****************************
+ * Platform
+****************************/
+
+/**
+ * Initializes timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformInitTimer(uhwt_timer_t timer);
+
+/**
+ * Deconstruct timer
+ * 
+ * @param timer timer to init
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformDeconstructTimer(uhwt_timer_t timer);
+
+/**
+ * Stops timer from executing
+ * 
+ * @param timer timer to stop
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformStopTimer(uhwt_timer_t timer);
+
+/**
+ * Starts continuous timer
+ * 
+ * @param timer timer to start
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformStartTimer(uhwt_timer_t timer);
+
+/**
+ * Sets timer stats for frequency
+ * 
+ * @param timer timer to set
+ * @param scalar scalar to set
+ * @param timerTicks ticks to set
+ * 
+ * @return if successful
+ */
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar,
+		uhwt_timertick_t timerTicks);
+
+/**
+ * Tests if timer presets equal the target frequency
+ * 
+ * @param targetFreq frequency to test
+ * @param scalar pre scalar for timer
+ * @param ticks timer ticks per cycle
+ * 
+ * @return if presets set equal to timer
+ */
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks);
 
 /**
  * Gets next pre scalar value
@@ -175,84 +265,6 @@ uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar);
  * @return computed pre scalar
  */
 uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks);
-
-/**
- * Sets function to execute for timer ISR
- * 
- * @param timer timer to set
- * @param function function to set
- * @param params params to set
- * 
- * @return if successfully set
- */
-bool uhwtPlatformSetCallbackParams(uhwt_timer_t timer,
-		uhwt_function_ptr_t function, uhwt_params_ptr_t params);
-
-/**
- * Sets timer stats for frequency
- * 
- * @param timer timer to set
- * @param scalar scalar to set
- * @param timerTicks ticks to set
- * 
- * @return if successful
- */
-bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar,
-		uhwt_timertick_t timerTicks);
-
-/**
- * Stops timer from executing
- * 
- * @param timer timer to stop
- * 
- * @return if successful
- */
-bool uhwtPlatformStopTimer(uhwt_timer_t timer);
-
-/**
- * Starts continuous timer
- * 
- * @param timer timer to start
- * 
- * @return if successful
- */
-bool uhwtPlatformStartTimer(uhwt_timer_t timer);
-
-/**
- * Initializes timer
- * 
- * @param timer timer to init
- * 
- * @return if successful
- */
-bool uhwtPlatformInitTimer(uhwt_timer_t timer);
-
-/**
- * Deconstruct timer
- * 
- * @param timer timer to init
- * 
- * @return if successful
- */
-bool uhwtPlatformDeconstructTimer(uhwt_timer_t timer);
-
-/**
- * Sets timer as initialized
- * 
- * @param timer timer id
- * 
- * @return if timer was initialized
- */
-bool uhwtSetTimerInitialized(uhwt_timer_t timer);
-
-/**
- * Sets timer as deconstructed
- * 
- * @param timer timer id
- * 
- * @return if timer was deconstructed
- */
-bool uhwtSetTimerDeconstructed(uhwt_timer_t timer);
 
 /**
  * Gets prescalar for given timer

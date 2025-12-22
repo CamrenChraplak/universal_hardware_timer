@@ -64,107 +64,11 @@ uint16_t getMask(prescalar_enum_t scalar) {
 }
 
 /****************************
- * Platform Functions
+ * Universal Hardware Timer Functions
 ****************************/
 
 uhwt_freq_t uhwtCalcFreq(uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
 	return F_CPU / ((uhwt_freq_t)getMask(scalar) * (ticks + 1));
-}
-
-bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	if (F_CPU % ((uhwt_freq_t)getMask(scalar) * (ticks + 1)) != 0) {
-		return false;
-	}
-	return true;
-}
-
-uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
-
-	// checks priorities
-	if (claimArgs.slowestTimer) {
-		if (!uhwtTimerClaimed(TIMER_1_ALIAS) && !uhwtTimerStarted(TIMER_1_ALIAS)) {
-			return TIMER_1_ALIAS;
-		}
-	}
-	if (claimArgs.mostAccurateTimer) {
-		if (!uhwtTimerClaimed(TIMER_2_ALIAS) && !uhwtTimerStarted(TIMER_2_ALIAS)) {
-			return TIMER_2_ALIAS;
-		}
-	}
-
-	return UHWT_TIMER_INVALID;
-}
-
-bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
-	if (scalar == 0) {
-		return false;
-	}
-	if ((scalar == SCALAR_32 || scalar == SCALAR_128) && timer != TIMER_2_ALIAS) {
-		return false;
-	}
-	return true;
-}
-
-bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
-	if (ticks == 0) {
-		return false;
-	}
-	uhwt_timertick_t maxValue = 0;
-	switch(timer) {
-		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
-			case(TIMER_0_ALIAS):
-				maxValue = TIMER_0_MAX_TICKS;
-			break;
-		#endif
-		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
-			case(TIMER_1_ALIAS):
-				maxValue = TIMER_1_MAX_TICKS;
-			break;
-		#endif
-		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
-			case(TIMER_2_ALIAS):
-				maxValue = TIMER_2_MAX_TICKS;
-			break;
-		#endif
-		default:
-		break;
-	}
-	if (ticks >= maxValue) {
-		return false;
-	}
-	return true;
-}
-
-uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
-	switch(prevScalar) {
-		case(SCALAR_0):
-			return SCALAR_1024;
-		break;
-		case(SCALAR_1024):
-			return SCALAR_256;
-		break;
-		case(SCALAR_256):
-			return SCALAR_128;
-		break;
-		case(SCALAR_128):
-			return SCALAR_64;
-		break;
-		case(SCALAR_64):
-			return SCALAR_32;
-		break;
-		case(SCALAR_32):
-			return SCALAR_8;
-		break;
-		case(SCALAR_8):
-			return SCALAR_1;
-		break;
-		case(SCALAR_1):
-			return SCALAR_0;
-		break;
-		default:
-			return SCALAR_0;
-		break;
-	};
 }
 
 uhwt_timertick_t uhwtCalcTicks(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar) {
@@ -175,44 +79,9 @@ uhwt_prescalar_t uhwtCalcScalar(uhwt_freq_t targetFreq, uhwt_timertick_t ticks) 
 	return F_CPU / (targetFreq * (ticks + 1));
 }
 
-/**
- * Sets timer stats
- * 
- * @param num timer number
- * @param scalar scalar to set
- * @param timerTicks ticks to set
- */
-#define UHWT_SET_STATS(num, scalar, timerTicks) \
-	cli(); \
-	HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET) = timerTicks; \
-	HARD_TIMER_CONCATENATE3(uhwtTimer, num, SetScalar)(scalar); \
-	HARD_TIMER_CONCATENATE3(TIMER_, num, _INCR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INCREM_ENABLE); \
-	sei()
-
-bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
-	
-	switch(timer) {
-		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
-			case(TIMER_0_ALIAS):
-				UHWT_SET_STATS(0, scalar, timerTicks);
-			break;
-		#endif
-		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
-			case(TIMER_1_ALIAS):
-				UHWT_SET_STATS(1, scalar, timerTicks);
-			break;
-		#endif
-		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
-			case(TIMER_2_ALIAS):
-				UHWT_SET_STATS(2, scalar, timerTicks);
-			break;
-		#endif
-		default:
-			return false;
-		break;
-	}
-	return true;
-}
+/****************************
+ * Platform Functions
+****************************/
 
 /**
  * Inits hardware timer
@@ -322,6 +191,101 @@ bool uhwtPlatformStartTimer(uhwt_timer_t timer) {
 	return true;
 }
 
+/**
+ * Sets timer stats
+ * 
+ * @param num timer number
+ * @param scalar scalar to set
+ * @param timerTicks ticks to set
+ */
+#define UHWT_SET_STATS(num, scalar, timerTicks) \
+	cli(); \
+	HARD_TIMER_CONCATENATE3(TIMER_, num, _TARGET) = timerTicks; \
+	HARD_TIMER_CONCATENATE3(uhwtTimer, num, SetScalar)(scalar); \
+	HARD_TIMER_CONCATENATE3(TIMER_, num, _INCR) |= HARD_TIMER_CONCATENATE3(TIMER_, num, _INCREM_ENABLE); \
+	sei()
+
+bool uhwtPlatformSetStats(uhwt_timer_t timer, uhwt_prescalar_t scalar, uhwt_timertick_t timerTicks) {
+	
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				UHWT_SET_STATS(0, scalar, timerTicks);
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				UHWT_SET_STATS(1, scalar, timerTicks);
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				UHWT_SET_STATS(2, scalar, timerTicks);
+			break;
+		#endif
+		default:
+			return false;
+		break;
+	}
+	return true;
+}
+
+uhwt_timer_t uwhtPlatformGetNextTimerStats(uhwt_claim_s claimArgs) {
+
+	// checks priorities
+	if (claimArgs.slowestTimer) {
+		if (!uhwtTimerClaimed(TIMER_1_ALIAS) && !uhwtTimerStarted(TIMER_1_ALIAS)) {
+			return TIMER_1_ALIAS;
+		}
+	}
+	if (claimArgs.mostAccurateTimer) {
+		if (!uhwtTimerClaimed(TIMER_2_ALIAS) && !uhwtTimerStarted(TIMER_2_ALIAS)) {
+			return TIMER_2_ALIAS;
+		}
+	}
+
+	return UHWT_TIMER_INVALID;
+}
+
+bool uhwtPlatformEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	if (F_CPU % ((uhwt_freq_t)getMask(scalar) * (ticks + 1)) != 0) {
+		return false;
+	}
+	return true;
+}
+
+uhwt_prescalar_t uhwtGetNextPreScalar(uhwt_prescalar_t prevScalar) {
+	switch(prevScalar) {
+		case(SCALAR_0):
+			return SCALAR_1024;
+		break;
+		case(SCALAR_1024):
+			return SCALAR_256;
+		break;
+		case(SCALAR_256):
+			return SCALAR_128;
+		break;
+		case(SCALAR_128):
+			return SCALAR_64;
+		break;
+		case(SCALAR_64):
+			return SCALAR_32;
+		break;
+		case(SCALAR_32):
+			return SCALAR_8;
+		break;
+		case(SCALAR_8):
+			return SCALAR_1;
+		break;
+		case(SCALAR_1):
+			return SCALAR_0;
+		break;
+		default:
+			return SCALAR_0;
+		break;
+	};
+}
+
 uhwt_prescalar_t uhwtPlatformGetPreScalar(uhwt_timer_t timer) {
 	switch(timer) {
 		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
@@ -373,6 +337,46 @@ uhwt_timertick_t uhwtPlatformGetTimerTicks(uhwt_timer_t timer) {
 			return false;
 		break;
 	}
+}
+
+bool uhwtValidPreScalar(uhwt_timer_t timer, uhwt_prescalar_t scalar) {
+	if (scalar == 0) {
+		return false;
+	}
+	if ((scalar == SCALAR_32 || scalar == SCALAR_128) && timer != TIMER_2_ALIAS) {
+		return false;
+	}
+	return true;
+}
+
+bool uhwtValidTimerTicks(uhwt_timer_t timer, uhwt_timertick_t ticks) {
+	if (ticks == 0) {
+		return false;
+	}
+	uhwt_timertick_t maxValue = 0;
+	switch(timer) {
+		#if TIMER_0_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_0_ALIAS):
+				maxValue = TIMER_0_MAX_TICKS;
+			break;
+		#endif
+		#if TIMER_1_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_1_ALIAS):
+				maxValue = TIMER_1_MAX_TICKS;
+			break;
+		#endif
+		#if TIMER_2_ALIAS != UHWT_TIMER_INVALID_LIT
+			case(TIMER_2_ALIAS):
+				maxValue = TIMER_2_MAX_TICKS;
+			break;
+		#endif
+		default:
+		break;
+	}
+	if (ticks >= maxValue) {
+		return false;
+	}
+	return true;
 }
 
 #endif

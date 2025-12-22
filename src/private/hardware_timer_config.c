@@ -28,24 +28,6 @@
 	void uhwtSetPriority(uhwt_timer_t timer, uhwt_priority_t priority) {}
 #endif
 
-bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
-	uhwt_freq_t calcFreq = uhwtCalcFreq(scalar, ticks);
-	if (!uhwtValidFrequency(targetFreq) || !uhwtValidFrequency(calcFreq)) {
-		return false;
-	}
-	if (calcFreq == targetFreq) {
-		return uhwtPlatformEqualFreq(targetFreq, scalar, ticks);
-	}
-	return false;
-}
-
-bool uhwtValidFrequency(uhwt_freq_t freq) {
-	if (freq > UHWT_TIMER_FREQ_MAX) {
-		return false;
-	}
-	return true;
-}
-
 bool uhwtStopTimer(uhwt_timer_t timer) {
 	if (!uhwtTimerStarted(timer)) {
 		return false;
@@ -104,6 +86,17 @@ uhwt_timer_t uwhtGetNextTimerStats(uhwt_claim_s claimArgs) {
 	}
 
 	return timer;
+}
+
+bool uhwtEqualFreq(uhwt_freq_t targetFreq, uhwt_prescalar_t scalar, uhwt_timertick_t ticks) {
+	uhwt_freq_t calcFreq = uhwtCalcFreq(scalar, ticks);
+	if (!uhwtValidFrequency(targetFreq) || !uhwtValidFrequency(calcFreq)) {
+		return false;
+	}
+	if (calcFreq == targetFreq) {
+		return uhwtPlatformEqualFreq(targetFreq, scalar, ticks);
+	}
+	return false;
 }
 
 /**
