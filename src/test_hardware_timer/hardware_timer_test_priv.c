@@ -18,6 +18,47 @@
 
 #include "hardware_timer_test_priv.h"
 
+/**
+ * Tests to run (excluding common args):
+ * 
+ * uhwtInitTimer
+ * uhwtDeconstructTimer
+ * uhwtStopTimer
+ * uhwtStartTimer
+ * uhwtClaimTimerStats
+ * uwhtGetNextTimerStats
+ * uhwtGetStats
+ * uhwtGetClosestStats
+ * uhwtSetCallbackParams
+ * uhwtSetStats
+ * uhwtSetupTimer
+ * uhwtSetupComplexTimer
+ * uhwtCalcFreq
+ * uhwtGetPreScalar
+ * uhwtGetTimerTicks
+ * uhwtEqualFreq
+ * uhwtSetPriority
+ * uhwtValidPreScalar
+ * uhwtValidTimerTicks
+ * uhwtGetCallback
+ * uhwtGetNextPreScalar
+ * uhwtCalcTicks
+ * uhwtCalcScalar
+ * 
+ * Platform dependent:
+ * 
+ * uwhtPlatformGetNextTimerStats
+ * uhwtPlatformSetCallbackParams
+ * uhwtPlatformInitTimer
+ * uhwtPlatformDeconstructTimer
+ * uhwtPlatformStopTimer
+ * uhwtPlatformStartTimer
+ * uhwtPlatformSetStats
+ * uhwtPlatformEqualFreq
+ * uhwtPlatformGetPreScalar
+ * uhwtPlatformGetTimerTicks
+ */
+
 #if defined(USE_UNITY)
 	#warning "Testing hardware_timer with Unity"
 #elif defined(ARDUINO)
@@ -486,6 +527,7 @@ void testFastTiming() {
 }
 
 void testUHWT() {
+	UHWT_SET_FILE_NAME("hardware_timer_test_priv.c");
 	RUN_TEST(&testProgramStart);
 	RUN_TEST(&testRepeat);
 	RUN_TEST(&testClaims);

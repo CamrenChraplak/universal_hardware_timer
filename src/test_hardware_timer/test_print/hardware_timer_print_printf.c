@@ -29,6 +29,24 @@
 char* timerFuncName = NULL;
 int timerFuncLine = -1;
 
+void freeFuncName() {
+	if (timerFuncName != NULL) {
+		free(timerFuncName);
+		timerFuncName = NULL;
+	}
+}
+
+void setFuncName(const char* funcName) {
+	freeFuncName();
+
+	int nameLen = strlen(funcName) + 1;
+	timerFuncName = (char*)malloc(sizeof(char) * nameLen);
+
+	for (int i = 0; i < nameLen; i++) {
+		timerFuncName[i] = funcName[i];
+	}
+}
+
 void printMessageType(memCharString *message, const int funcLine, int messType) {
 	printf("[");
 	if (messType == TEST_FAILED) {
@@ -53,10 +71,7 @@ void printMessageType(memCharString *message, const int funcLine, int messType) 
 	printf(message);
 	printf("\n");
 
-	if (timerFuncName != NULL) {
-		free(timerFuncName);
-		timerFuncName = NULL;
-	}
+	freeFuncName();
 }
 
 bool timerCountWithin(uint32_t buffer, uint32_t targetCount, uint32_t realCount, const int funcLine) {
@@ -75,18 +90,8 @@ bool timerCountWithin(uint32_t buffer, uint32_t targetCount, uint32_t realCount,
 }
 
 void runTest(const char* funcName, const int funcLine) {
-	if (timerFuncName != NULL) {
-		free(timerFuncName);
-		timerFuncName = NULL;
-	}
-
 	timerFuncLine = funcLine;
-	int nameLen = strlen(funcName) + 1;
-	timerFuncName = (char*)malloc(sizeof(char) * nameLen);
-
-	for (int i = 0; i < nameLen; i++) {
-		timerFuncName[i] = funcName[i];
-	}
+	setFuncName(funcName);
 }
 
 #endif

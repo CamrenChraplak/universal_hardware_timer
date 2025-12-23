@@ -30,6 +30,11 @@ extern "C" {
  */
 void testUHWT();
 
+/**
+ * Tests common functions independent of platform
+ */
+void uhwtTestCommon();
+
 #ifdef __cplusplus
 }
 #endif

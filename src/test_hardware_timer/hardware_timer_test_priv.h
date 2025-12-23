@@ -27,6 +27,7 @@ typedef const char memCharString;
 #if defined(PIO_UNIT_TESTING) || defined(ESP_IDF_UNIT_TESTING) || defined(PICO_SDK_UNIT_TESTING)
 	#include <unity.h>
 	#define USE_UNITY // use Unity for testing
+	#define UHWT_SET_FILE_NAME(fileName) UnitySetTestFile(fileName) // sets file name for testing
 // use Serial or printf
 #else
 	typedef void (*test_func_t)(void);
@@ -74,10 +75,14 @@ typedef const char memCharString;
 	#define RUN_TEST(function) runTest(#function, __LINE__); (function)()
 
 	#define TEST_IGNORE_MESSAGE(message) printMessageType(message, __LINE__, TEST_IGNORED); return
+	#define TEST_IGNORE() printMessageType("IGNORE", __LINE__, TEST_IGNORED); return
 	#define TEST_FAIL_MESSAGE(message) printMessageType(message, __LINE__, TEST_FAILED); return
+	#define TEST_FAIL() printMessageType("FAIL", __LINE__, TEST_IGNORED); return
 	#define TEST_PASS() printMessageType("", __LINE__, TEST_PASSED); return
 
 	#define TEST_ASSERT_UINT32_WITHIN(buffer, targetCount, realCount) if (!timerCountWithin(buffer, targetCount, realCount, __LINE__)) {return;}
+
+	#define UHWT_SET_FILE_NAME(fileName) // sets file name for testing
 #endif
 
 #ifdef __cplusplus
