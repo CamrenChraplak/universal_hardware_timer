@@ -74,7 +74,36 @@
 	typedef void* uhwt_platform_callback_ptr_t; // specific platform callback pointer type
 	#define UHWT_NO_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
 	#define UHWT_CONFIGS_NOT_EQUAL // hardware timers don't have equal configurations
+#else
+	typedef void* uhwt_platform_callback_ptr_t; // specific platform callback pointer type
+	#define UHWT_NO_CALLBACK_SUPPORT // hardware timer doesn't use callbacks
 #endif
+
+#if UHWT_TIMER_COUNT <= 8
+	typedef uint8_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 16
+	typedef uint16_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 32
+	typedef uint32_t uhwt_stat_t; // type for timer stats
+#elif UHWT_TIMER_COUNT <= 64
+	typedef uint64_t uhwt_stat_t; // type for timer stats
+#endif
+
+#if UHWT_TIMER_COUNT > 0
+	#define UHWT_TIMER_BIT_FIELD_LEN UHWT_TIMER_COUNT // bit field length for hardware timers
+#else
+	#define UHWT_TIMER_BIT_FIELD_LEN 1 // bit field length for hardware timers
+#endif
+
+// stores status of hardware timers
+typedef struct {
+	uhwt_stat_t uhwtClaimed: UHWT_TIMER_BIT_FIELD_LEN; // whether timers were claimed or not
+	uhwt_stat_t uhwtInitialized: UHWT_TIMER_BIT_FIELD_LEN; // whether timers were initialized or not
+	uhwt_stat_t uhwtStarted: UHWT_TIMER_BIT_FIELD_LEN; // whether timers were started or not
+} uhwt_stat_s;
+
+// stores status of all hardware timers
+extern uhwt_stat_s uhwtStats;
 
 #ifdef __cplusplus
 extern "C" {
@@ -88,37 +117,37 @@ extern "C" {
  * Sets timer as started
  * 
  * @param timer timer to start
- * 
- * @return if start was successful
  */
-bool uhwtSetTimerStarted(uhwt_timer_t timer);
+static inline void uhwtSetTimerStarted(uhwt_timer_t timer) {
+	uhwtStats.uhwtStarted |= (1 << (timer));
+}
 
 /**
  * Sets timer as stopped
  * 
  * @param timer timer to stop
- * 
- * @return if stop was successful
  */
-bool uhwtSetTimerStopped(uhwt_timer_t timer);
+static inline void uhwtSetTimerStopped(uhwt_timer_t timer) {
+	uhwtStats.uhwtStarted &= (~(1 << (timer)));
+}
 
 /**
  * Sets timer as initialized
  * 
  * @param timer timer id
- * 
- * @return if timer was initialized
  */
-bool uhwtSetTimerInitialized(uhwt_timer_t timer);
+static inline void uhwtSetTimerInitialized(uhwt_timer_t timer) {
+	uhwtStats.uhwtInitialized |= (1 << (timer));
+}
 
 /**
  * Sets timer as deconstructed
  * 
  * @param timer timer id
- * 
- * @return if timer was deconstructed
  */
-bool uhwtSetTimerDeconstructed(uhwt_timer_t timer);
+static inline void uhwtSetTimerDeconstructed(uhwt_timer_t timer) {
+	uhwtStats.uhwtInitialized &= (~(1 << (timer)));
+}
 
 /**
  * Gets next timer according to claim arguments

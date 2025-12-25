@@ -20,6 +20,7 @@
 #define HARDWARE_TIMER_TEST_PRIV_H
 
 #include "../universal_hardware_timer_test.h"
+#include "../private/hardware_timer_priv.h"
 
 typedef const char memCharString;
 

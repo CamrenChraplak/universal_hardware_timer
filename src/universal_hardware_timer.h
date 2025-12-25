@@ -49,6 +49,11 @@ typedef struct {
  * Platform detection
 ****************************/
 
+// if a native platform is selected
+#define UHWT_SUPPORT_NATIVE ( \
+	defined(PIO_NATIVE_ENVIRONMENT) \
+)
+
 // if a supported avr platform is selected
 #define UHWT_SUPPORT_AVR ( \
 	defined(__AVR_ATmega328P__) \
@@ -67,6 +72,7 @@ typedef struct {
 
 // if a supported platform is selected
 #define UHWT_SUPPORT ( \
+	UHWT_SUPPORT_NATIVE || \
 	UHWT_SUPPORT_AVR || \
 	UHWT_SUPPORT_ESP32 || \
 	UHWT_SUPPORT_PICO \
@@ -164,6 +170,20 @@ typedef struct {
 	typedef uint16_t uhwt_prescalar_t; // prescalar type
 	typedef uint16_t uhwt_timertick_t; // timer tick type
 
+#elif UHWT_SUPPORT_NATIVE
+
+	/****************************
+	 * Timer Config
+	 * 
+	 * No hardware timers available
+	****************************/
+
+	#define UHWT_TIMER_FREQ_MAX 100000 // max frequency user set timer can be
+	#define UHWT_TIMER_COUNT UHWT_TIMER_MAX_COUNT // amount of hardware timers to use
+
+	typedef uint8_t uhwt_prescalar_t; // prescalar type
+	typedef uint8_t uhwt_timertick_t; // timer tick type
+
 #else
 
 	/****************************
@@ -173,10 +193,7 @@ typedef struct {
 	****************************/
 
 	#define UHWT_TIMER_FREQ_MAX 0 // max frequency user set timer can be
-
-	#ifndef UHWT_TIMER_COUNT
-		#define UHWT_TIMER_COUNT 0 // amount of hardware timers to use
-	#endif
+	#define UHWT_TIMER_COUNT 0 // amount of hardware timers to use
 
 	typedef uint8_t uhwt_prescalar_t; // prescalar type
 	typedef uint8_t uhwt_timertick_t; // timer tick type
@@ -507,7 +524,7 @@ static inline bool uhwtValidFrequency(uhwt_freq_t freq) {
  * @return if timer is valid
  */
 static inline bool uhwtValidTimer(uhwt_timer_t timer) {
-	if (timer == UHWT_TIMER_INVALID || timer >= UHWT_TIMER_COUNT) {
+	if (timer < 0 || timer >= UHWT_TIMER_COUNT) {
 		return false;
 	}
 	return true;

@@ -18,23 +18,6 @@
 
 #include "hardware_timer_priv.h"
 
-#if UHWT_TIMER_COUNT <= 8
-	typedef uint8_t uhwt_stat_t; // type for timer stats
-#elif UHWT_TIMER_COUNT <= 16
-	typedef uint16_t uhwt_stat_t; // type for timer stats
-#elif UHWT_TIMER_COUNT <= 32
-	typedef uint32_t uhwt_stat_t; // type for timer stats
-#elif UHWT_TIMER_COUNT <= 64
-	typedef uint64_t uhwt_stat_t; // type for timer stats
-#endif
-
-// stores status of hardware timers
-typedef struct {
-	uhwt_stat_t uhwtClaimed: UHWT_TIMER_COUNT; // whether timers were claimed or not
-	uhwt_stat_t uhwtInitialized: UHWT_TIMER_COUNT; // whether timers were initialized or not
-	uhwt_stat_t uhwtStarted: UHWT_TIMER_COUNT; // whether timers were started or not
-} uhwt_stat_s;
-
 // stores status of all hardware timers
 uhwt_stat_s uhwtStats;
 
@@ -57,38 +40,6 @@ bool uhwtTimerInitialized(uhwt_timer_t timer) {
 		return false;
 	}
 	return !!(uhwtStats.uhwtInitialized & (((uhwt_stat_t)1) << (timer)));
-}
-
-bool uhwtSetTimerStarted(uhwt_timer_t timer) {
-	if (!uhwtTimerStarted(timer)) {
-		uhwtStats.uhwtStarted |= (1 << (timer));
-		return true;
-	}
-	return false;
-}
-
-bool uhwtSetTimerStopped(uhwt_timer_t timer) {
-	if (uhwtTimerStarted(timer)) {
-		uhwtStats.uhwtStarted &= (~(1 << (timer)));
-		return true;
-	}
-	return false;
-}
-
-bool uhwtSetTimerInitialized(uhwt_timer_t timer) {
-	if (!uhwtTimerInitialized(timer)) {
-		uhwtStats.uhwtInitialized |= (1 << (timer));
-		return true;
-	}
-	return false;
-}
-
-bool uhwtSetTimerDeconstructed(uhwt_timer_t timer) {
-	if (uhwtTimerInitialized(timer)) {
-		uhwtStats.uhwtInitialized &= (~(1 << (timer)));
-		return true;
-	}
-	return false;
 }
 
 uhwt_prescalar_t uhwtGetPreScalar(uhwt_timer_t timer) {

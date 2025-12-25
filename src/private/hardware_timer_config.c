@@ -19,7 +19,7 @@
 #include "hardware_timer_priv.h"
 
 #if !UHWT_SUPPORT
-	#error "hardware_timer.h library not supported!"
+	#warning "universal_hardware_timer.h library not supported!"
 #endif
 
 #ifdef UHWT_PRIORITY_SUPPORT
@@ -33,37 +33,41 @@ bool uhwtStopTimer(uhwt_timer_t timer) {
 		return false;
 	}
 	if (uhwtPlatformStopTimer(timer)) {
-		return uhwtSetTimerStopped(timer);
+		uhwtSetTimerStopped(timer);
+		return true;
 	}
 	return false;
 }
 
 bool uhwtStartTimer(uhwt_timer_t timer) {
-	if (uhwtTimerStarted(timer) && uhwtValidTimer(timer)) {
+	if (!uhwtValidTimer(timer) || uhwtTimerStarted(timer) || !uhwtTimerInitialized(timer)) {
 		return false;
 	}
 	if (uhwtPlatformStartTimer(timer)) {
-		return uhwtSetTimerStarted(timer);
+		uhwtSetTimerStarted(timer);
+		return true;
 	}
 	return false;
 }
 
 bool uhwtInitTimer(uhwt_timer_t timer) {
-	if (uhwtTimerInitialized(timer) && uhwtValidTimer(timer)) {
+	if (uhwtTimerInitialized(timer) || !uhwtValidTimer(timer)) {
 		return false;
 	}
 	if (uhwtPlatformInitTimer(timer)) {
-		return uhwtSetTimerInitialized(timer);
+		uhwtSetTimerInitialized(timer);
+		return true;
 	}
 	return false;
 }
 
 bool uhwtDeconstructTimer(uhwt_timer_t timer) {
-	if (!uhwtTimerInitialized(timer)) {
+	if (!uhwtTimerInitialized(timer) || uhwtTimerStarted(timer)) {
 		return false;
 	}
 	if (uhwtPlatformDeconstructTimer(timer)) {
-		return uhwtSetTimerDeconstructed(timer);
+		uhwtSetTimerDeconstructed(timer);
+		return true;
 	}
 	return false;
 }

@@ -70,6 +70,7 @@ void printMessageType(memCharString *message, const int funcLine, int messType) 
 	printf(": ");
 	printf(message);
 	printf("\n");
+	fflush(NULL);
 
 	freeFuncName();
 }

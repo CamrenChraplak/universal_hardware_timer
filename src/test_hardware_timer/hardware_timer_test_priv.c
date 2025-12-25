@@ -67,7 +67,7 @@
 	#warning "Testing hardware_timer with C"
 #endif
 
-#if UHWT_TIMER_COUNT > 0
+#if UHWT_SUPPORT && !UHWT_SUPPORT_NATIVE
 
 // TODO: setting to 1000 from 10 to test esp32 makes uno error
 #define TEST_SLOW_FREQ 10 // frequency for testing slow timing
@@ -540,13 +540,14 @@ void testUHWT() {
 
 #else
 
-memCharString passTimerIgnore[] = {"Ignoring timer tests"};
+memCharString passTimerIgnore[] = {"Ignoring platform timer tests"};
 
 void passTimers() {
 	TEST_IGNORE_MESSAGE(passTimerIgnore);
 }
 
 void testUHWT() {
+	UHWT_SET_FILE_NAME("hardware_timer_test_priv.c");
 	RUN_TEST(&passTimers);
 }
 #endif
